@@ -54,6 +54,21 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v7
+      - name: Give map assets release-specific URLs
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          import shutil
+          from pathlib import Path
+          release = os.environ["GITHUB_SHA"][:12]
+          page = Path("index.html")
+          html = page.read_text()
+          for path in map(Path, ["atlas.js", "maps/terrain.yaml", "css/site.css"]):
+              target = path.with_stem(f"{path.stem}-{release}")
+              shutil.copyfile(path, target)
+              html = html.replace(f'"{path}"', f'"{target}"')
+          page.write_text(html)
+          PYTHON
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
         with:

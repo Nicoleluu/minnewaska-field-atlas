@@ -27,8 +27,13 @@ def vector(name, cols=()):
         return [feature(transform_geom(src.crs, "EPSG:4326", f["geometry"], precision=6),
                         {k: f["properties"][k] for k in cols}) for f in src]
 
-for name, cols in [("boundary",()), ("creative_lens_footprint",()), ("contours",("ELEV",))]:
+for name, cols in [("boundary",()), ("contours",("ELEV",))]:
     collection(name, vector(name, cols))
+# Only the camera extent is needed on the web.
+from rasterio.features import bounds as geometry_bounds
+west, south, east, north = geometry_bounds(vector("creative_lens_footprint")[0]["geometry"])
+dump(out / "comparison-bounds.json", [[west, south], [east, north]])
+
 with rasterio.open(source / "screening_classes.tif") as src, rasterio.open(source / "trail_near.tif") as trail:
     classes = src.read(1)
     near = trail.read(1) > 0

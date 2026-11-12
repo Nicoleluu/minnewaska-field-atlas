@@ -17,7 +17,7 @@ async function dataset(name) {
 }
 async function start() {
   const [map, study, detail, observations, cells] = await Promise.all([
-    host.mapReady(), dataset("boundary"), dataset("creative_lens_footprint"), dataset("observations"),
+    host.mapReady(), dataset("boundary"), fetch("data/comparison-bounds.json").then(response => response.json()), dataset("observations"),
     fetch("data/candidate-cells.json").then(response => response.json())
   ]);
   let comparing = false;
@@ -76,7 +76,7 @@ async function start() {
     drawPicks();
   }
   const popup = new Popup({maxWidth:"260px"});
-  const extents = [bounds(study), bounds(detail)];
+  const extents = [bounds(study), detail];
   function frame(animate = true) {
     if (comparing && localCenter) {
       map.easeTo({center:localCenter, zoom:14, bearing:0, pitch:0, duration:animate ? duration : 0});
