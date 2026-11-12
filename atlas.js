@@ -353,7 +353,6 @@ async function start() {
     plantMarkers=[];
     map.getSource("sighting-distance").setData(collection([]));
     clearHover();
-    id("plants").setAttribute("aria-pressed","false");
     id("back").hidden=true;
     if (restore && overviewCamera) map.easeTo({...overviewCamera,duration});
   }
@@ -363,11 +362,9 @@ async function start() {
     overviewCamera={center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()};
     popup.remove();clearHover();showRecords();
     map.getSource("sighting-distance").setData(collection([measurement(pair.map(r=>r.coordinates))]));
-    id("plants").setAttribute("aria-pressed","true");
     id("back").hidden=false;
     fitCoordinates(pair.map(r=>r.coordinates),{top:140,bottom:45,left:84,right:84},17);
   }
-  id("plants").onclick=comparePhotos;
   id("back").onclick=()=>closeComparison(true);
   document.addEventListener("keydown",event=>{
     if(event.key==="Escape" && !id("photo-dialog").open) closeComparison(true);
