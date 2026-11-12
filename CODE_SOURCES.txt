@@ -130,3 +130,14 @@ canopy, surrounding terrain shadows, atmosphere, clouds and diffuse light.
 It is not measured insolation, temperature, moisture or plant response.
 Solar geometry: NOAA Global Monitoring Laboratory, General Solar Position
 Calculations, https://gml.noaa.gov/grad/solcalc/solareqns.PDF
+
+In-map comparison revision
+Field selection is available directly on load. The fit command computes its
+camera bounds from every selected cell centre and the vertices of its nearest
+trail section, with a viewport-relative margin. Purple dotted measurements
+join the centres to the nearest displayed trail position. Distances listed
+in the panel still come from the original UTM analysis.
+The M23/M30 comparison adds the original photographs, exposure labels,
+elevations and separation to the same map. It leaves the month filter,
+selection panel and other layers available. The two dated example sightings
+can be inspected independently of the filtered observation layer.

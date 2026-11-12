@@ -23,7 +23,7 @@ async function start() {
     fetch("data/featured-pair.json").then(response => response.json()), dataset("all-plants"),
     fetch("data/observation-photos.json").then(response=>response.json()), dataset("field-trails")
   ]);
-  let mode = "landscape";
+
   const forMonth = (records,month) => records.filter(f=>!month || f.properties.date.slice(5,7) === month);
   const plantLayers = ["plant-clusters","plant-counts","plant-points"];
   map.addSource("plant-records",{type:"geojson",data:allPlants,cluster:true,clusterRadius:36,clusterMaxZoom:15});
@@ -40,8 +40,7 @@ async function start() {
   let sourceMonth = "";
   let overviewCamera;
   let plantMarkers = [];
-  const guided = () => mode === "records" || mode === "reveal";
-  const initialIntro = id("intro").textContent;
+
   const selections = new Map();
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 480;
   const highlightSource = "field-trail-highlight";
@@ -52,16 +51,42 @@ async function start() {
     map.addLayer({id:highlightSource+"-"+suffix,type:"line",source:highlightSource,
       paint:{"line-color":color,"line-width":width},layout:{"line-cap":"round","line-join":"round"}},"plant-clusters");
   }
+  // Dotted measurements show straight-line separation, independently of trail geometry.
+  for (const [layer,color] of [["site-distance","#67366e"],["sighting-distance","#344a40"]]) {
+    map.addSource(layer,{type:"geojson",data:collection([])});
+    map.addLayer({id:layer,type:"line",source:layer,
+      paint:{"line-color":color,"line-width":1.6,"line-dasharray":[1,2]}}, "plant-clusters");
+  }
+  const measurement = coordinates => ({type:"Feature",geometry:{type:"LineString",coordinates},properties:{}});
+  function closestOnSection(point, line) {
+    const scale=Math.cos(point[1]*Math.PI/180);
+    let best=line[0], distance=Infinity;
+    for(let i=1;i<line.length;i++){
+      const a=line[i-1], b=line[i];
+      const dx=(b[0]-a[0])*scale, dy=b[1]-a[1];
+      const length=dx*dx+dy*dy;
+      if (!length) continue;
+      const t=Math.max(0,Math.min(1,((point[0]-a[0])*scale*dx+(point[1]-a[1])*dy)/length));
+      const q=[a[0]+t*(b[0]-a[0]),a[1]+t*dy];
+      const d=((q[0]-point[0])*scale)**2+(q[1]-point[1])**2;
+      if (d<distance) {best=q;distance=d;}
+    }
+    return best;
+  }
   let exampleActive = false;
   let sunlightShown = false;
   let notes = "";
   function updateTrails() {
     const selected = [...selections.values()].map(({cell})=>trailPieces.features[cell[7]]);
     const features = selected.length ? [...new Set(selected)] : exampleActive ? exampleTrails : [];
-    const open = id("slope-tools").open && !guided();
-    map.getSource(highlightSource).setData(collection(open ? features : []));
-    id("trail-key").hidden = !open || !features.length;
-    id("trail-hint").textContent = selected.length ? "Purple marks the nearest mapped trail section for each selected cell."
+    map.getSource(highlightSource).setData(collection(features));
+    const links=[...selections.values()].map(({cell,marker})=>{
+      const start=marker.getLngLat().toArray();
+      return measurement([start,closestOnSection(start,trailPieces.features[cell[7]].geometry.coordinates)]);
+    });
+    map.getSource("site-distance").setData(collection(links));
+    id("trail-key").hidden = !features.length;
+    id("trail-hint").textContent = selected.length ? "Purple highlights the nearest trail section. The dotted line measures straight-line distance to it."
       : exampleActive ? "Purple marks mapped trails in the example area. Select a teal patch and an orange patch nearby."
       : "Choose the trail-side example or select colored slopes on the map.";
     id("terrain-example").textContent = selected.length ? "Show selected sites and nearby trails" : "Zoom to slopes near trails";
@@ -93,6 +118,7 @@ async function start() {
       } else card.append(" · Select a "+(code===1?"teal":"orange")+" patch.");
       panel.append(card);
     }
+    for (const {marker} of selections.values()) marker.getElement().querySelector(".sun-index")?.remove();
     updateTrails();
     const complete=selections.size===2;
     id("clear").hidden=selections.size===0;
@@ -122,6 +148,10 @@ async function start() {
       for (const [i,name] of ["North","South"].entries()) {
         const p=document.createElement("p"); p.textContent=name+" site: "+scores[i]+"% of flat-ground exposure";
         result.append(p); lines.push(period+" · "+p.textContent);
+        const badge=document.createElement("span");
+        badge.className="sun-index";
+        badge.textContent="Sun index "+scores[i]+"%";
+        selections.get(i+1).marker.getElement().append(badge);
       }
       const p=document.createElement("p");
       p.textContent="100% is level ground under the same idealized open sky. Canopy, terrain shadows and cloud are excluded. Test this prediction by measuring light at plant height at both sites.";
@@ -147,7 +177,7 @@ async function start() {
     selections.get(code)?.marker.remove();
     const dot = document.createElement("span");
     dot.className = "pick " + (code === 1 ? "north" : "south");
-    dot.textContent = code === 1 ? "N" : "S";
+    dot.textContent = (code === 1 ? "N · " : "S · ") + best[4] + " m";
     const marker = new Marker({element:dot}).setLngLat([best[0]/1e6,best[1]/1e6]).addTo(map);
     selections.set(code, {cell:best, marker});
     sunlightShown=false;
@@ -237,14 +267,6 @@ async function start() {
   map.on("movestart",clearHover);
   const studyExtent = bounds(study);
   function frame(animate = true) {
-    if (guided()) {
-      const positions = pair.map(record=>record.coordinates);
-      const bbox = positions.reduce(([lo,hi],[x,y])=>[
-        [Math.min(lo[0],x), Math.min(lo[1],y)], [Math.max(hi[0],x), Math.max(hi[1],y)]
-      ], [[Infinity,Infinity],[-Infinity,-Infinity]]);
-      map.fitBounds(bbox,{padding:{top:132,bottom:32,left:59,right:59},maxZoom:16,duration:animate ? duration : 0});
-      return;
-    }
     map.fitBounds(studyExtent,{padding:28,duration:animate ? duration : 0});
   }
   function visible(layer, show) {
@@ -252,11 +274,8 @@ async function start() {
   }
   function refresh() {
     clearHover();
-    visible("candidates", mode !== "records");
-    id("terrain-key").hidden = mode === "records";
-    id("point-key").hidden = guided();
-    id("reset").textContent = guided() ? "Fit both sightings" : "Show full study area";
-    plantLayers.forEach(layer=>visible(layer,!guided()));
+    visible("candidates",true);
+    plantLayers.forEach(layer=>visible(layer,true));
     const month = document.querySelector("[name=month]:checked").value;
     const records = forMonth(allPlants.features,month);
     if (month !== sourceMonth) {
@@ -280,9 +299,7 @@ async function start() {
       description:"Pink buds and open flowers share a cluster beside the observer’s hand."}
   };
   function showRecords() {
-    id("record-cards").replaceChildren();
     for (const record of pair) {
-      const revealed = mode === "reveal";
       const photo = photos[record.id];
       const date = new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(record.date));
       const openPhoto = () => {
@@ -295,13 +312,15 @@ async function start() {
         id("photo-dialog").showModal();
       };
       const pin = document.createElement("button");
-      pin.className = "record-pin" + (revealed ? " " + record.aspect.toLowerCase() : "");
+      pin.className = "record-pin " + record.aspect.toLowerCase();
       pin.setAttribute("aria-label", "Enlarge " + date + " photograph, " + record.id);
       const thumb = document.createElement("img");
       thumb.src = photo.path; thumb.alt = "";
       const label = document.createElement("span");
-      label.textContent = revealed ? record.aspect + "-facing" : date;
-      pin.append(thumb,label);
+      label.textContent = record.aspect + "-facing · " + record.elevation + " m";
+      const metadata=document.createElement("small");
+      metadata.textContent=date+" · "+record.slope+"° slope";
+      pin.append(thumb,label,metadata);
       pin.addEventListener("pointerenter",event=>{
         if (event.pointerType !== "mouse") return;
         const content = document.createElement("article");
@@ -315,93 +334,59 @@ async function start() {
       pin.addEventListener("pointerleave",clearHover);
       pin.onclick = event => {event.stopPropagation();openPhoto();};
       plantMarkers.push(new Marker({element:pin,anchor:"bottom"}).setLngLat(record.coordinates).addTo(map));
-      const card = document.createElement("article");
-      card.className = "sample-record";
-      const title = document.createElement("h2"), data = document.createElement("p"), link = document.createElement("a");
-      title.textContent = date + " · " + record.id;
-      data.textContent = record.elevation + " m elevation · " +
-        (record.accuracy == null ? "Location accuracy unreported" : "Reported accuracy ±" + record.accuracy + " m");
-      link.href = record.url; link.target = "_blank"; link.rel = "noopener";
-      link.textContent = record.observer + " on iNaturalist ↗";
-      const caption = document.createElement("p");
-      caption.textContent = photo.description;
-      const enlarge = document.createElement("button");
-      enlarge.className = "photo-link"; enlarge.textContent = "View photograph"; enlarge.onclick=openPhoto;
-      const credit = document.createElement("small");
-      credit.textContent = "Photo © " + photo.credit + " · CC BY-NC";
-      card.append(title,caption,data,enlarge,link,credit);
-      if (revealed) {
-        const reading = document.createElement("p");
-        reading.textContent = record.aspect + "-facing · " + record.slope + "° slope · bearing " + record.bearing + "°";
-        card.append(reading);
-      }
-      id("record-cards").append(card);
     }
+    const midpoint=pair[0].coordinates.map((v,i)=>(v+pair[1].coordinates[i])/2);
+    const distance=document.createElement("span");
+    distance.className="pair-distance"; distance.textContent="224 m apart";
+    plantMarkers.push(new Marker({element:distance}).setLngLat(midpoint).addTo(map));
   }
-  const titles = {landscape:"Where to study plant growth", records:"Mountain laurel in June", reveal:"Across the ridge"};
-  const descriptions = {landscape:initialIntro,
-    records:"Both photographs show open mountain-laurel flowers. They were taken eight days and 224 m apart, at almost the same elevation. Tap either photograph to look closer.",
-    reveal:"M23 sits on a north-facing forest cell and M30 on a south-facing one. The colors show where those settings continue around the two records."};
-  function render(next, camera) {
-    const previous = mode;
+  function fitCoordinates(coords, padding, maxZoom) {
+    const xs=coords.map(p=>p[0]),ys=coords.map(p=>p[1]);
     map.stop();
-    mode = next;
-    popup.remove();
-    for (const {marker} of selections.values()) marker.getElement().hidden=guided();
-    drawPicks();
-    plantMarkers.forEach(marker=>marker.remove());
-    plantMarkers = [];
-    id("heading").textContent=titles[mode];
-    id("intro").textContent=descriptions[mode];
-    id("map-tools").hidden=guided();
-    id("plant-story").hidden=!guided();
-    id("back").hidden=!guided();
-    id("back").textContent="← Back to map";
-    if (guided()) {
-      showRecords();
-      id("study-note").hidden=mode !== "reveal";
-      id("next-stage").textContent=mode === "records" ? "Reveal slope aspects" : "Return to map";
-    }
-    refresh();
-    if (camera) map.jumpTo(camera);
-    else if (!(mode === "reveal" && previous === "records")) frame(previous !== next);
-    if (matchMedia("(max-width:760px)").matches) document.querySelector(".canvas").scrollIntoView({block:"start"});
+    map.resize();
+    map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],
+      {padding,maxZoom,bearing:0,pitch:0,duration,linear:true});
   }
-  function navigate(next) {
-    if (next === mode) return;
-    const camera = {center:map.getCenter().toArray(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()};
-    if (!guided()) overviewCamera=camera;
-    history.replaceState({...history.state,camera}, "");
-    history.pushState({overviewCamera}, "", location.pathname + location.search + (next === "landscape" ? "" : "#" + next));
-    render(next,next === "landscape" ? overviewCamera : null);
+  function closeComparison(restore) {
+    if (!plantMarkers.length) return;
+    for (const marker of plantMarkers) marker.remove();
+    plantMarkers=[];
+    map.getSource("sighting-distance").setData(collection([]));
+    clearHover();
+    id("plants").setAttribute("aria-pressed","false");
+    id("back").hidden=true;
+    if (restore && overviewCamera) map.easeTo({...overviewCamera,duration});
   }
-  function currentRoute() {
-    const route = location.hash.slice(1);
-    return Object.hasOwn(titles,route) ? route : "landscape";
+  function comparePhotos() {
+    if (plantMarkers.length) {closeComparison(true);return;}
+    map.stop();
+    overviewCamera={center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()};
+    popup.remove();clearHover();showRecords();
+    map.getSource("sighting-distance").setData(collection([measurement(pair.map(r=>r.coordinates))]));
+    id("plants").setAttribute("aria-pressed","true");
+    id("back").hidden=false;
+    fitCoordinates(pair.map(r=>r.coordinates),{top:140,bottom:45,left:84,right:84},17);
   }
-  window.addEventListener("popstate", () => {
-    overviewCamera=history.state?.overviewCamera;
-    render(currentRoute(),history.state?.camera);
+  id("plants").onclick=comparePhotos;
+  id("back").onclick=()=>closeComparison(true);
+  document.addEventListener("keydown",event=>{
+    if(event.key==="Escape" && !id("photo-dialog").open) closeComparison(true);
   });
-  document.addEventListener("keydown", event => {
-    if(event.key === "Escape" && guided() && !id("photo-dialog").open) navigate("landscape");
-  });
-  id("plants").onclick=()=>navigate("records");
-  id("next-stage").onclick=()=>navigate(mode === "records" ? "reveal" : "landscape");
-  id("back").onclick=()=>navigate("landscape");
   id("terrain-example").onclick=()=>{
+    closeComparison(false);
+    clearHover();popup.remove();
     exampleActive=true;
     updateTrails();
     if (selections.size) {
       const coords=[...selections.values()].flatMap(({cell,marker})=>[
         marker.getLngLat().toArray(),...trailPieces.features[cell[7]].geometry.coordinates]);
-      const xs=coords.map(p=>p[0]), ys=coords.map(p=>p[1]);
-      map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],{padding:65,maxZoom:16,duration});
-    } else map.fitBounds(detail,{padding:28,duration});
+      const canvas=map.getCanvas();
+      const margin=Math.round(Math.min(canvas.clientWidth,canvas.clientHeight)*0.12);
+      fitCoordinates(coords,Math.max(38,Math.min(90,margin)),17);
+    } else fitCoordinates(detail,28,16);
     if (matchMedia("(max-width:760px)").matches) document.querySelector(".canvas").scrollIntoView({block:"start"});
   };
-  id("slope-tools").ontoggle=updateTrails;
-  id("sunlight").onclick=()=>{sunlightShown=true;drawPicks();};
+  id("sunlight").onclick=()=>{sunlightShown=true;drawPicks();id("terrain-example").click();};
   id("field-notes").onclick=()=>{
     const url=URL.createObjectURL(new Blob([notes],{type:"text/plain;charset=utf-8"}));
     const link=document.createElement("a");link.href=url;link.download="Minnewaska-field-pair.txt";
@@ -409,15 +394,14 @@ async function start() {
   };
   id("month-picker").onchange=()=>{ popup.remove(); refresh(); drawPicks(); };
   id("clear").onclick=clearPicks;
-  id("reset").onclick=()=>frame();
+  id("reset").onclick=()=>{closeComparison(false);frame();};
 
   map.on("click",async event=>{
-    if (guided()) return;
     const hits = map.queryRenderedFeatures(event.point,{layers:["plant-clusters","plant-points","candidates"]});
     const cluster = hits.find(f=>f.layer.id==="plant-clusters");
     if (cluster) {
       const zoom = await map.getSource("plant-records").getClusterExpansionZoom(cluster.properties.cluster_id);
-      if (!guided()) map.easeTo({center:cluster.geometry.coordinates,zoom,duration});
+      map.easeTo({center:cluster.geometry.coordinates,zoom,duration});
       return;
     }
     const pointHit = hits.find(f=>f.layer.id==="plant-points");
@@ -427,14 +411,14 @@ async function start() {
       return;
     }
     const slope = hits.find(f=>f.layer.id==="candidates");
-    if (slope && id("slope-tools").open) {
+    if (slope) {
       pick(event.lngLat,slope);
     }
   });
   map.on("mousemove",async event=>{
     const layers = ["plant-points","plant-clusters"];
-    if (id("slope-tools").open) layers.push("candidates");
-    const hits = guided() ? [] : map.queryRenderedFeatures(event.point,{layers});
+    layers.push("candidates");
+    const hits = map.queryRenderedFeatures(event.point,{layers});
     map.getCanvas().style.cursor = hits.length ? "pointer" : "";
     const hit = hits.find(f=>["plant-points","plant-clusters"].includes(f.layer.id));
     if (!hit || popup.isOpen() || event.originalEvent.buttons) { clearHover(); return; }
@@ -455,9 +439,9 @@ async function start() {
       : "Click to keep this photograph open.";
     preview.setLngLat(hit.geometry.coordinates).setDOMContent(photoCard(record,hint)).addTo(map);
   });
-  overviewCamera = history.state?.overviewCamera;
-  render(currentRoute(),history.state?.camera);
-  if (location.hash === "#slopes") { id("slope-tools").open=true; map.fitBounds(detail,{padding:28,duration:0}); }
+  drawPicks();refresh();frame(false);
+  if (["#records","#reveal"].includes(location.hash)) comparePhotos();
+  if (location.hash === "#slopes") id("terrain-example").click();
   id("status").textContent="";
 }
 start().catch(error=>{id("status").textContent="Map could not load. Refresh using a WebGL-enabled browser.";console.error(error);});
