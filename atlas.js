@@ -276,7 +276,6 @@ async function start() {
     clearHover();
     const showSlopes=id("show-slopes").checked;
     visible("candidates",showSlopes);
-    visible("study-boundary",showSlopes);
     visible("historical-trails",showSlopes);
     id("terrain-key").hidden=!showSlopes;
     plantLayers.forEach(layer=>visible(layer,true));
