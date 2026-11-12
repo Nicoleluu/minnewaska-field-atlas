@@ -87,7 +87,7 @@ async function start() {
       const bbox = positions.reduce(([lo,hi],[x,y])=>[
         [Math.min(lo[0],x), Math.min(lo[1],y)], [Math.max(hi[0],x), Math.max(hi[1],y)]
       ], [[Infinity,Infinity],[-Infinity,-Infinity]]);
-      map.fitBounds(bbox,{padding:60,maxZoom:16,duration:animate ? duration : 0});
+      map.fitBounds(bbox,{padding:guided() ? {top:132,bottom:32,left:59,right:59} : 60,maxZoom:16,duration:animate ? duration : 0});
       return;
     }
     if (mode === "slopes" && localCenter) {
@@ -114,7 +114,10 @@ async function start() {
 
     visible("historical-trails", id("trails").checked);
     visible("laurel", !guided() && id("observations").checked);
+    const month = id("month").value;
+    map.setFilter("laurel",month ? ["==",["slice",["get","date"],5,7],month] : null);
     id("months").hidden = !id("observations").checked;
+    id("month-message").textContent = month ? "Select a point to read its dated record." : "28 of 34 records were made in June. Choose a month to locate its observations.";
     if (!id("observations").checked) popup.remove();
     id("bars").replaceChildren();
     for (const [name, color, area] of [["North","#275ca4",near?191:854],["South","#d87e32",near?211:893]]) {
@@ -128,36 +131,64 @@ async function start() {
       id("bars").append(row);
     }
   }
+  const photos = {
+    M23:{path:"data/photos/M23.jpg",credit:"rachelgoland98",source:"https://www.inaturalist.org/photos/521611947",
+      description:"Clusters of open, pale flowers sit between dark green leaves."},
+    M30:{path:"data/photos/M30.jpg",credit:"Courtney Kelly Jett",source:"https://www.inaturalist.org/photos/528767985",
+      description:"Pink buds and open flowers share a cluster beside the observer’s hand."}
+  };
   function showRecords() {
-    id("records").replaceChildren();
+    id("record-cards").replaceChildren();
     for (const record of pair) {
       const revealed = mode === "reveal";
-      const pin = document.createElement("span");
+      const photo = photos[record.id];
+      const date = new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(record.date));
+      const openPhoto = () => {
+        id("photo-heading").textContent = "Mountain laurel · " + date + ", 2025";
+        id("full-photo").src = photo.path; id("full-photo").alt = photo.description;
+        id("photo-caption").textContent = photo.description;
+        id("photo-source").href = photo.source;
+        id("photo-source").textContent = "Photograph © " + photo.credit;
+        id("photo-dialog").showModal();
+      };
+      const pin = document.createElement("button");
       pin.className = "record-pin" + (revealed ? " " + record.aspect.toLowerCase() : "");
-      pin.textContent = record.id;
-      plantMarkers.push(new Marker({element:pin}).setLngLat(record.coordinates).addTo(map));
+      pin.setAttribute("aria-label", "Enlarge " + date + " photograph, " + record.id);
+      const thumb = document.createElement("img");
+      thumb.src = photo.path; thumb.alt = "";
+      const label = document.createElement("span");
+      label.textContent = revealed ? record.aspect + "-facing" : date;
+      pin.append(thumb,label);
+      pin.onclick = event => {event.stopPropagation();openPhoto();};
+      plantMarkers.push(new Marker({element:pin,anchor:"bottom"}).setLngLat(record.coordinates).addTo(map));
       const card = document.createElement("article");
       card.className = "sample-record";
       const title = document.createElement("h2"), data = document.createElement("p"), link = document.createElement("a");
-      title.textContent = record.id + " · " + record.date;
+      title.textContent = date + " · " + record.id;
       data.textContent = record.elevation + " m elevation · " +
         (record.accuracy == null ? "Location accuracy unreported" : "Reported accuracy ±" + record.accuracy + " m");
       link.href = record.url; link.target = "_blank"; link.rel = "noopener";
       link.textContent = record.observer + " on iNaturalist ↗";
-      card.append(title,data,link);
+      const caption = document.createElement("p");
+      caption.textContent = photo.description;
+      const enlarge = document.createElement("button");
+      enlarge.className = "photo-link"; enlarge.textContent = "View photograph"; enlarge.onclick=openPhoto;
+      const credit = document.createElement("small");
+      credit.textContent = "Photo © " + photo.credit + " · CC BY-NC";
+      card.append(title,caption,data,enlarge,link,credit);
       if (revealed) {
         const reading = document.createElement("p");
         reading.textContent = record.aspect + "-facing · " + record.slope + "° slope · bearing " + record.bearing + "°";
         card.append(reading);
       }
-      id("records").append(card);
+      id("record-cards").append(card);
     }
   }
-  const titles = {landscape:"Reading the ridge", slopes:"Opposing slopes", records:"Two mountain laurels",
+  const titles = {landscape:"Reading the ridge", slopes:"Opposing slopes", records:"Mountain laurel in June",
     reveal:"Across the ridge", explore:"Explore the observations"};
   const descriptions = {landscape:initialIntro,
     slopes:"Select a blue north-facing slope and an orange south-facing slope. Compare their elevation and steepness, then try a different pair. Each selection samples a 30 m forest cell.",
-    records:"Two observers recorded mountain laurel 224 m apart. Their mapped elevations differ by just 4 m. How does the ground beneath them differ?",
+    records:"Both photographs show open mountain-laurel flowers. They were taken eight days and 224 m apart, at almost the same elevation. Tap either photograph to look closer.",
     reveal:"M23 sits on a north-facing forest cell and M30 on a south-facing one. The colors show where those settings continue around the two records.",
     explore:"Explore all 34 observations. Select a point for its field record, or choose a blue and an orange slope to compare terrain. Some slopes have no nearby observations."};
   function render(next, camera) {
@@ -187,6 +218,7 @@ async function start() {
     }
     if (mode === "explore" && previous !== mode) {
       id("observations").checked=true;
+      id("month").value="";
       id("near").checked=false;
       document.querySelector("[value=both]").checked=true;
     }
@@ -216,12 +248,23 @@ async function start() {
     localCenter = history.state?.center;
     render(currentRoute(),history.state?.camera);
   });
-  document.addEventListener("keydown", event => { if(event.key === "Escape") leave(); });
+  document.addEventListener("keydown", event => { if(event.key === "Escape" && !id("photo-dialog").open) leave(); });
   id("plants").onclick=()=>navigate("records");
   id("next-stage").onclick=()=>navigate(mode === "records" ? "reveal" : "explore");
   id("compare").onclick=id("explore").onclick=()=>navigate("slopes");
   id("back").onclick=leave;
   id("landscape").onclick=()=>history.state?.parent === "landscape" ? leave() : navigate("landscape");
+  id("month").onchange=()=>{
+    popup.remove(); refresh();
+    const month = id("month").value;
+    const points = observations.features.filter(f=>!month || f.properties.date.slice(5,7)===month)
+      .map(f=>f.geometry.coordinates);
+    if (points.length) {
+      const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]);
+      map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],
+        {padding:50,maxZoom:14,duration});
+    }
+  };
   id("clear").onclick=clearPicks;
   id("reset").onclick=()=>frame();
   document.querySelectorAll("aside input").forEach(el=>el.onchange=refresh);

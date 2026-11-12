@@ -68,3 +68,10 @@ The recorded positions are 224 m apart in UTM zone 18N. Their dates are
 eight days apart; flowering-stage and microclimate effects are not inferred.
 Nicole selected this sequence after reviewing the overlap analysis. Codex
 implemented it and prepared the two-record export from the sampled GeoPackage.
+
+Photographs shown in the guided comparison (classroom, noncommercial use):
+M23 © rachelgoland98, https://www.inaturalist.org/photos/521611947
+M30 © Courtney Kelly Jett, https://www.inaturalist.org/photos/528767985
+Both photos are CC BY-NC; https://creativecommons.org/licenses/by-nc/4.0/.
+Map thumbnails use a cropped display; enlarged views show the full image.
+Captions describe visible details. These visits do not establish bloom timing.
