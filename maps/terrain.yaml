@@ -1,7 +1,7 @@
 type: map
 id: minnewaska
 config:
-  mapStyle: "style.json"
+  mapStyle: "street-style.json"
   center: [-74.253, 41.731]
   zoom: 11.5
 controls:
@@ -9,15 +9,6 @@ controls:
   scale: { enabled: true, position: bottom-left }
 legend: false
 layers:
-  - id: terrain-contours
-    label: Elevation contours
-    toggleable: false
-    type: line
-    source: {type: geojson, url: data/contours.geojson}
-    paint:
-      line-color: "#566763"
-      line-opacity: ["interpolate", ["linear"], ["zoom"], 10, 0.13, 14, 0.48]
-      line-width: ["step", ["get", "ELEV"], 0.55, 300, 0.85, 500, 1.2]
   - id: candidates
     label: Forested slopes
     type: fill
@@ -26,7 +17,7 @@ layers:
     source: {type: geojson, url: data/slopes.geojson}
     paint:
       fill-color: ["match", ["get", "aspect"], North, "#147973", "#d87e32"]
-      fill-opacity: 0.88
+      fill-opacity: 0.64
   - id: study-hit-area
     type: fill
     label: Explore landscape

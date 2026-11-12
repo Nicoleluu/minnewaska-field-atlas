@@ -33,7 +33,7 @@ async function start() {
       "circle-radius":["step",["get","point_count"],13,10,16,50,19]}});
   map.addLayer({id:"plant-counts",type:"symbol",source:"plant-records",filter:clusterFilter,
     layout:{visibility:"none","text-field":["to-string",["get","point_count"]],"text-size":12,
-      "text-font":["Roboto Regular"],"text-allow-overlap":true,"text-ignore-placement":true},paint:{"text-color":"white"}});
+      "text-font":["Noto Sans Regular"],"text-allow-overlap":true,"text-ignore-placement":true},paint:{"text-color":"white"}});
   map.addLayer({id:"plant-points",type:"circle",source:"plant-records",filter:["!",clusterFilter],
     layout:{visibility:"none"},paint:{"circle-radius":6,"circle-stroke-width":1.4,"circle-stroke-color":"white",
       "circle-color":"#633752"}});
@@ -88,7 +88,7 @@ async function start() {
     id("trail-key").hidden = !features.length;
     id("trail-hint").textContent = selected.length ? "Purple highlights the nearest trail section. The dotted line measures straight-line distance to it."
       : exampleActive ? "Purple marks mapped trails in the example area. Select a teal patch and an orange patch nearby."
-      : "Choose the trail-side example or select colored slopes on the map.";
+      : "Zoom to the trail-side example, or turn on slopes to select sites anywhere.";
     id("terrain-example").textContent = selected.length ? "Show selected sites and nearby trails" : "Zoom to slopes near trails";
   }
   function clearPicks() {
@@ -274,7 +274,11 @@ async function start() {
   }
   function refresh() {
     clearHover();
-    visible("candidates",true);
+    const showSlopes=id("show-slopes").checked;
+    visible("candidates",showSlopes);
+    visible("study-boundary",showSlopes);
+    visible("historical-trails",showSlopes);
+    id("terrain-key").hidden=!showSlopes;
     plantLayers.forEach(layer=>visible(layer,true));
     const month = document.querySelector("[name=month]:checked").value;
     const records = forMonth(allPlants.features,month);
@@ -360,6 +364,7 @@ async function start() {
     if (plantMarkers.length) {closeComparison(true);return;}
     map.stop();
     overviewCamera={center:map.getCenter().toArray(),zoom:map.getZoom(),pitch:map.getPitch(),bearing:map.getBearing()};
+    id("show-slopes").checked=true;refresh();
     popup.remove();clearHover();showRecords();
     map.getSource("sighting-distance").setData(collection([measurement(pair.map(r=>r.coordinates))]));
     id("back").hidden=false;
@@ -369,7 +374,9 @@ async function start() {
   document.addEventListener("keydown",event=>{
     if(event.key==="Escape" && !id("photo-dialog").open) closeComparison(true);
   });
+  id("show-slopes").onchange=refresh;
   id("terrain-example").onclick=()=>{
+    id("show-slopes").checked=true;refresh();
     closeComparison(false);
     clearHover();popup.remove();
     exampleActive=true;
@@ -436,6 +443,7 @@ async function start() {
       : "Click to keep this photograph open.";
     preview.setLngLat(hit.geometry.coordinates).setDOMContent(photoCard(record,hint)).addTo(map);
   });
+  map.moveLayer("candidates","road_area_pattern");
   drawPicks();refresh();frame(false);
   if (["#records","#reveal"].includes(location.hash)) comparePhotos();
   if (location.hash === "#slopes") id("terrain-example").click();

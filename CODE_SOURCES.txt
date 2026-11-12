@@ -141,3 +141,19 @@ The M23/M30 comparison adds the original photographs, exposure labels,
 elevations and separation to the same map. It leaves the month filter,
 selection panel and other layers available. The two dated example sightings
 can be inspected independently of the filtered observation layer.
+
+Street basemap revision
+OpenFreeMap Liberty street style, OpenMapTiles and OpenStreetMap contributors:
+https://tiles.openfreemap.org/styles/liberty
+The active street map omits shaded relief and elevation contours. Local town
+boundaries are shared edges of adjoining New York county subdivisions from
+the US Census Bureau TIGERweb BAS 2026 layer 8, clipped to the Minnewaska
+vicinity (west -74.53, south 41.56, east -74.06, north 41.88).
+https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/8
+The slope screen is opt-in, drawn beneath street lines and labels, and
+enabled automatically for the trail-side field comparison.
+For overview zoom levels 9.5–13, local and secondary road centerlines from
+TIGERweb Transportation layers 8 and 6 supplement the generalized vector
+tiles. Coverage: -74.48, 41.61 to -74.12, 41.81. At closer scales the
+OpenStreetMap network supplies detailed roads and labels.
+https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer
