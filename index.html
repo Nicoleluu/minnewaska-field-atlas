@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Minnewaska · Terrain &amp; exposure</title><meta name="description" content="Explore forested ridges and compare north- and south-facing slopes at Minnewaska, New York.">
+<link rel="stylesheet" href="vendor/maplibre-gl.css"><link rel="stylesheet" href="css/site.css">
+<script type="importmap">{"imports":{"maplibre-gl":"./vendor/maplibre-gl.mjs"}}</script></head>
+<body><header><b>Minnewaska</b><span>Terrain &amp; exposure</span><small>Nicole Lu · GIS for Design Practices</small></header>
+<main><section class="canvas" aria-label="Interactive terrain map"><ml-map src="maps/terrain.yaml"></ml-map>
+<div class="map-status" role="status" id="status">Loading terrain…</div>
+<div class="map-footer"><span id="location">Shawangunk Ridge, New York</span><button id="reset">Reset extent</button></div></section>
+<aside><nav aria-label="Map views"><button aria-pressed="true" id="landscape">Landscape</button><button aria-pressed="false" id="compare">Slope comparison</button></nav>
+<h1 id="heading">Reading the ridge</h1><p id="intro">Trace the relief beneath the forest canopy. The dashed blue ring marks a place where opposing slopes meet near historical trails.</p>
+<div id="land-tools"><div class="stat"><strong>94.2<span>%</span></strong><span>forest cover<br>in 2016</span></div>
+<button class="primary" id="explore">Examine the comparison area <span aria-hidden="true">↗</span></button></div>
+<section id="slope-tools" hidden><fieldset><legend>Aspect</legend><div class="radios"><label><input name="aspect" type="radio" value="both" checked>Both</label><label><input name="aspect" type="radio" value="North">North</label><label><input name="aspect" type="radio" value="South">South</label></div></fieldset>
+<label><input type="checkbox" id="near"> Within 100 m of historical trails</label>
+<h3>Candidate area across the study</h3><div id="bars" aria-live="polite"></div></section>
+<section><h2>Map layers</h2><label><input id="trails" type="checkbox" checked>Historical trails</label><label><input id="observations" type="checkbox">Mountain-laurel records <small>2025</small></label>
+<p id="months" hidden><i class="apr"></i>Apr <i class="may"></i>May <i class="jun"></i>Jun<br>Choose a point to inspect its dated records.</p></section>
+<section><h2>Map key</h2><ul id="key"><li><i class="forest"></i>Forest</li><li><i class="land"></i>Other cover</li><li><i class="water"></i>Water</li><li><i class="contour"></i>Contour</li></ul></section>
+<details><summary>Data &amp; interpretation</summary><p>Terrain uses a 30 m USGS 3DEP elevation grid. Forest includes the 2016 NLCD deciduous, evergreen and mixed classes. North spans 315°–45° and south spans 135°–225°. Both require slopes of at least 10°.</p><p>Distances are measured to the historical NY State Parks trail network (2021 merge). Current access and temperature require field verification. The 34 iNaturalist mountain-laurel observations are unevenly distributed across April, May and June 2025.</p><a href="CODE_SOURCES.txt">Sources and code credits</a></details>
+</aside></main><script type="module" src="atlas.js"></script></body></html>

@@ -1,0 +1,65 @@
+# Checks every map and story YAML file, then publishes the site on GitHub Pages.
+#
+# - On a pull request: only the check runs.
+# - On a push to main (or a run started by hand from the Actions tab): the
+#   check runs, and if it passes the folder is published as it is. There is
+#   no build step.
+#
+# One-time setup on GitHub: Settings → Pages → Build and deployment →
+# Source: "GitHub Actions".
+#
+# If a YAML file has a mistake, the "validate" job fails (its log names the
+# file, line and column) and the published site stays as it was.
+name: Validate and deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer push doesn't cancel one that has started.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Check the map and story files
+        # The same command you can run on your computer. In CI it is strict:
+        # warnings fail the check too.
+        run: npx --yes @maplibre-yaml/cli@0.7 validate maps
+
+  deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          # The whole repository folder is the site (.git, .github and other
+          # hidden files are left out).
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

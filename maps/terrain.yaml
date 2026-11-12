@@ -1,0 +1,58 @@
+type: map
+id: minnewaska
+config:
+  mapStyle: "style.json"
+  center: [-74.253, 41.731]
+  zoom: 11.5
+controls:
+  navigation: { enabled: true, position: top-right }
+  scale: { enabled: true, position: bottom-left }
+legend: false
+layers:
+  - id: terrain-contours
+    label: Elevation contours
+    toggleable: false
+    type: line
+    source: {type: geojson, url: data/contours.geojson}
+    paint:
+      line-color: "#566763"
+      line-opacity: ["interpolate", ["linear"], ["zoom"], 10, 0.13, 14, 0.48]
+      line-width: ["step", ["get", "ELEV"], 0.55, 300, 0.85, 500, 1.2]
+  - id: candidates
+    label: Forested slopes
+    type: fill
+    toggleable: false
+    visible: false
+    source: {type: geojson, url: data/slopes.geojson}
+    paint:
+      fill-color: ["match", ["get", "aspect"], North, "#275ca4", "#d87e32"]
+      fill-opacity: 0.88
+  - id: study-boundary
+    type: line
+    label: Study boundary
+    toggleable: false
+    source: {type: geojson, url: data/boundary.geojson}
+    paint: {line-color: "#354a4d", line-width: 1.4}
+  - id: historical-trails
+    type: line
+    label: Historical trails
+    toggleable: false
+    source: {type: geojson, url: data/trails.geojson}
+    paint: {line-color: "#504d49", line-width: 1.15, line-dasharray: [3, 2]}
+  - id: detail-window
+    type: line
+    label: Comparison area
+    toggleable: false
+    source: {type: geojson, url: data/creative_lens_footprint.geojson}
+    paint: {line-color: "#173c8a", line-width: 2, line-dasharray: [4, 2]}
+  - id: laurel
+    label: Mountain laurel
+    type: circle
+    visible: false
+    toggleable: false
+    source: {type: geojson, url: data/observations.geojson}
+    paint:
+      circle-color: ["get", "color"]
+      circle-radius: ["interpolate", ["linear"], ["zoom"], 10, 3, 15, 7]
+      circle-stroke-color: white
+      circle-stroke-width: 1.4

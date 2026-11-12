@@ -1,0 +1,50 @@
+Minnewaska | Terrain & exposure
+GIS for Design Practices | Assignment 4
+
+Course foundation and implementation
+Tutorial 08.1, Interactive Mapping Part 1
+https://designpractices.org/tutorials/08-interactive-mapping-part-1/
+The starting basemap is the user's existing Minnewaska | Forest & Water
+Maputnik style from Part 1. It uses OSM Liberty, OpenFreeMap and OpenStreetMap.
+The revised style places a georeferenced study relief image below the labels.
+
+Tutorial 08.2, Interactive Mapping Part 2
+https://designpractices.org/tutorials/09-interactive-mapping-part-2/
+Derived from the course's plain-HTML full-page map template at revision
+88ce43982961d9506d75511d50f76f12cd878f96.
+https://github.com/design-practices/html-maplibre-template
+The page uses the template's ml-map component, import map, local style.json,
+relative data paths, YAML configuration and validation/deployment workflow.
+The Inter fonts come from the template. The browser bundles are MapLibre GL JS
+6.18.0 and @maplibre-yaml/core 0.10.2, distributed locally.
+
+Tutorial 08.3, Additional Representation in Webmapping
+https://designpractices.org/tutorials/10-interactive-mapping-part-3/
+The observation layer reads categorical month colors with get. Contour width
+uses step on elevation (300 and 500 m breaks). Slope fill uses an aspect
+category; symbols change with zoom. The page adds a linked detail extent,
+slope and trail-proximity filters, updated whole-study totals, and linked
+observation popups. Popups can list multiple nearby records.
+
+Authorship
+Nicole selected the studies, defined the order of the views, requested the
+course methods and directed the visual revision. OpenAI Codex generated the
+project-specific Python export, YAML, HTML, CSS and JS and adapted the course
+deployment workflow. Record subsequent student edits and tests here.
+
+Data
+USGS 3DEP elevation, slope, aspect and shaded relief, 30 m analysis grid:
+https://www.usgs.gov/3d-elevation-program
+NLCD 2016 New York land cover:
+https://cugir-data.s3.amazonaws.com/00/90/31/fgdc.html
+Historical NY State Parks trails, 2021 merge:
+https://services.arcgis.com/1xFZPtKn1wKC6POA/ArcGIS/rest/services/NY_State_Parks_Trails/FeatureServer/0
+Community-defined study boundary:
+https://www.inaturalist.org/places/192775
+The Assignment 3 analysis identified north- and south-facing forested slopes
+of at least 10 degrees. Areas were measured in the original 30 m UTM grid.
+The polygons preserve cell boundaries. The near-trail filter uses the original
+100 m proximity mask. Display figures are rounded to whole hectares.
+Assignment 2 supplied 34 unique Kalmia latifolia observations from April–June
+2025. Observer names, dates, accuracy and original links are in the GeoJSON.
+Photos and unverified flowering-stage interpretations are omitted.
