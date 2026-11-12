@@ -144,7 +144,7 @@ can be inspected independently of the filtered observation layer.
 
 Street basemap
 OpenStreetMap Standard tiles cover the full map, including the interior of
-the study polygon. The boundary is a separate transparent outline; selected
+the study polygon. A faint green fill and a thin outline mark the study area; selected
 forested slopes overlay the base with translucent color.
 https://www.openstreetmap.org/copyright
 https://operations.osmfoundation.org/policies/tiles/

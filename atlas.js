@@ -442,6 +442,7 @@ async function start() {
       : "Click to keep this photograph open.";
     preview.setLngLat(hit.geometry.coordinates).setDOMContent(photoCard(record,hint)).addTo(map);
   });
+  map.moveLayer("study-hit-area","town-boundaries");
   map.moveLayer("candidates","town-boundaries");
   drawPicks();refresh();frame(false);
   if (["#records","#reveal"].includes(location.hash)) comparePhotos();

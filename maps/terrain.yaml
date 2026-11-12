@@ -20,10 +20,10 @@ layers:
       fill-opacity: 0.50
   - id: study-hit-area
     type: fill
-    label: Explore landscape
+    label: Study area
     toggleable: false
     source: {type: geojson, url: data/boundary.geojson}
-    paint: {fill-opacity: 0}
+    paint: {fill-color: "#70aa77", fill-opacity: 0.14, fill-outline-color: "transparent"}
   - id: study-boundary
     type: line
     label: Study boundary
