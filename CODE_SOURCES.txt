@@ -94,3 +94,9 @@ media and uses the explicitly labelled Vaccinium pallidum species reference
 photograph 266941479, © Douglas Goldman (CC BY-SA). Images in hover cards
 load from the original public photo hosts with iNaturalist attribution.
 Cluster previews show one member's photo and identify the group size.
+
+Unified map revision
+The initial map combines all 553 plant observations, forest slope candidates,
+relief and historical trails. Month and aspect controls act in the same view.
+The terrain example changes only the camera. The two-observation comparison
+is optional and returns to the previous map extent and filters.

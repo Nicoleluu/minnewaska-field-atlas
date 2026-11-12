@@ -45,14 +45,3 @@ layers:
     toggleable: false
     source: {type: geojson, url: data/trails.geojson}
     paint: {line-color: "#504d49", line-width: 1.15, line-dasharray: [3, 2]}
-  - id: laurel
-    label: Mountain laurel
-    type: circle
-    visible: false
-    toggleable: false
-    source: {type: geojson, url: data/observations.geojson}
-    paint:
-      circle-color: ["get", "color"]
-      circle-radius: ["interpolate", ["linear"], ["zoom"], 10, 5, 15, 8]
-      circle-stroke-color: white
-      circle-stroke-width: 1.4

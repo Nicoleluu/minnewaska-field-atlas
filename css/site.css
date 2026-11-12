@@ -13,3 +13,5 @@ button.record-pin{pointer-events:auto;display:grid;width:88px;padding:3px 3px 4p
 #months select{max-width:100%;font:inherit;padding:3px 5px}#months p{margin:5px 0}
 #scope-control[hidden]{display:none}#scope-control select{font:inherit;padding:3px 5px}.maplibregl-popup-content{max-height:40vh;overflow:auto}
 .observation-preview,.observation-preview .maplibregl-popup-content{pointer-events:none}.observation-card{display:grid;gap:3px;line-height:1.3;min-width:150px}.observation-card img{width:100%;height:128px;object-fit:contain;background:#edf1ef}.observation-card small{font-size:10px;color:#445763}.observation-card button{margin-top:5px}.observation-preview .maplibregl-popup-content{max-height:none}
+.month-key{font-size:13px;margin:7px 0}#month,.terrain-example{font:inherit;color:inherit;padding:4px 8px}.terrain-example{background:white;border:1px solid #a9b9c2;border-radius:3px;margin:4px 0 10px}#slope-tools summary{padding:3px 0}#map-tools .plant-entry{margin-top:15px}
+.pick[hidden]{display:none}
