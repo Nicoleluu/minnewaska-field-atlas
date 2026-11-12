@@ -27,6 +27,12 @@ layers:
     paint:
       fill-color: ["match", ["get", "aspect"], North, "#275ca4", "#d87e32"]
       fill-opacity: 0.88
+  - id: study-hit-area
+    type: fill
+    label: Explore landscape
+    toggleable: false
+    source: {type: geojson, url: data/boundary.geojson}
+    paint: {fill-opacity: 0}
   - id: study-boundary
     type: line
     label: Study boundary
@@ -39,12 +45,6 @@ layers:
     toggleable: false
     source: {type: geojson, url: data/trails.geojson}
     paint: {line-color: "#504d49", line-width: 1.15, line-dasharray: [3, 2]}
-  - id: detail-window
-    type: line
-    label: Comparison area
-    toggleable: false
-    source: {type: geojson, url: data/creative_lens_footprint.geojson}
-    paint: {line-color: "#173c8a", line-width: 2, line-dasharray: [4, 2]}
   - id: laurel
     label: Mountain laurel
     type: circle

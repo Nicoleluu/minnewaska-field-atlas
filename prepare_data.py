@@ -39,6 +39,18 @@ with rasterio.open(source / "screening_classes.tif") as src, rasterio.open(sourc
         groups.append(feature(transform_geom(src.crs, "EPSG:4326", geom, precision=6),
                               dict(aspect="North" if code%10==1 else "South", near=code>10)))
     collection("slopes", groups)
+    # Store candidate cell centres, in grid order, for point-to-point comparisons.
+    from rasterio.warp import transform
+    rows, cols = np.where(np.isin(classes, [1, 2]))
+    xs, ys = rasterio.transform.xy(src.transform, rows, cols)
+    lng, lat = transform(src.crs, "EPSG:4326", xs, ys)
+    fields = []
+    for name in ["dem_30m", "slope", "aspect"]:
+        with rasterio.open(source / (name + ".tif")) as grid:
+            fields.append(np.rint(grid.read(1)[rows, cols]).astype(int))
+    values = np.column_stack((np.rint(np.array(lng)*1e6), np.rint(np.array(lat)*1e6),
+                              classes[rows,cols], near[rows,cols], *fields)).astype(int)
+    dump(out / "candidate-cells.json", values.tolist())
     dst,w,h = calculate_default_transform(src.crs,"EPSG:3857",src.width,src.height,*src.bounds)
     def warp(arr):
         result = np.zeros((h,w),dtype="uint8")

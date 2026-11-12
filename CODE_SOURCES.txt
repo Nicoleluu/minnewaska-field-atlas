@@ -48,3 +48,12 @@ The polygons preserve cell boundaries. The near-trail filter uses the original
 Assignment 2 supplied 34 unique Kalmia latifolia observations from April–June
 2025. Observer names, dates, accuracy and original links are in the GeoJSON.
 Photos and unverified flowering-stage interpretations are omitted.
+
+Interactive sampling revision
+The landscape opens a slope comparison at the selected location. The example
+button uses the original detail extent. Selecting a colored slope places a pin
+on the nearest original 30 m candidate cell centre of the clicked aspect and
+trail-proximity class. Elevation, slope and aspect come from the original grids.
+Separation uses the great-circle distance between cell centres. Slope and
+bearing are rounded to whole degrees. Returning restores the overview camera.
+Codex implemented this revision in response to Nicole's interaction feedback.
