@@ -26,3 +26,5 @@ body{background:#f6f7f3;color:#23372f}header{background:#243c33;align-items:cent
 .sun-index{display:block;border-top:1px solid #fffa;font-size:10px;line-height:1.4}
 
 .town-key i,.study-key i{height:0;width:20px}.town-key i{border-top:1px solid #8b8981}.study-key i{border-top:1.4px solid #354a4d}
+
+.base-credit{background:#fff;text-align:right;padding:1px 8px;font:11px/1.3 Arial,sans-serif}.base-credit a{color:#40554b}
