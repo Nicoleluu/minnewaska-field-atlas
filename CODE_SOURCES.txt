@@ -75,3 +75,14 @@ M30 © Courtney Kelly Jett, https://www.inaturalist.org/photos/528767985
 Both photos are CC BY-NC; https://creativecommons.org/licenses/by-nc/4.0/.
 Map thumbnails use a cropped display; enlarged views show the full image.
 Captions describe visible details. These visits do not establish bloom timing.
+
+All plants in free exploration
+Public iNaturalist snapshot retrieved November 12, 2026, using three pages
+of /v1/observations with place_id=192775, taxon_id=47126, geo=true,
+verifiable=any, d1=2025-04-01, d2=2025-06-30. Records are unique by
+iNaturalist observation ID and use public coordinates. The 553 observations
+include 37 from April, 245 from May and 271 from June. Counts describe
+reports across all quality grades. The all-plants snapshot retains every
+source ID; the 34-record Assignment 2 layer retains its original curation.
+Each record links to the observer's source. The all-plants layer filters
+records by month before clustering them. No additional photos were copied.

@@ -16,12 +16,28 @@ async function dataset(name) {
   return response.json();
 }
 async function start() {
-  const [map, study, detail, observations, cells, pair] = await Promise.all([
+  const [map, study, detail, observations, cells, pair, allPlants] = await Promise.all([
     host.mapReady(), dataset("boundary"), fetch("data/comparison-bounds.json").then(response => response.json()), dataset("observations"),
     fetch("data/candidate-cells.json").then(response => response.json()),
-    fetch("data/featured-pair.json").then(response => response.json())
+    fetch("data/featured-pair.json").then(response => response.json()), dataset("all-plants")
   ]);
   let mode = "landscape";
+  const allScope = () => mode === "explore" && id("scope").value === "all";
+  const activeRecords = () => (allScope() ? allPlants : observations).features;
+  const forMonth = (records,month) => records.filter(f=>!month || f.properties.date.slice(5,7) === month);
+  const plantLayers = ["plant-clusters","plant-counts","plant-points"];
+  map.addSource("plant-records",{type:"geojson",data:allPlants,cluster:true,clusterRadius:36,clusterMaxZoom:15});
+  const clusterFilter = ["has","point_count"];
+  map.addLayer({id:"plant-clusters",type:"circle",source:"plant-records",filter:clusterFilter,
+    layout:{visibility:"none"},paint:{"circle-color":"#374e60","circle-stroke-color":"white","circle-stroke-width":1.5,
+      "circle-radius":["step",["get","point_count"],13,10,16,50,19]}});
+  map.addLayer({id:"plant-counts",type:"symbol",source:"plant-records",filter:clusterFilter,
+    layout:{visibility:"none","text-field":["to-string",["get","point_count"]],"text-size":12,
+      "text-font":["Roboto Regular"],"text-allow-overlap":true,"text-ignore-placement":true},paint:{"text-color":"white"}});
+  map.addLayer({id:"plant-points",type:"circle",source:"plant-records",filter:["!",clusterFilter],
+    layout:{visibility:"none"},paint:{"circle-radius":6,"circle-stroke-width":1.4,"circle-stroke-color":"white",
+      "circle-color":["match",["slice",["get","date"],5,7],"04","#974675","05","#b17d09","#4357a1"]}});
+  let sourceMonth = "";
   let localCenter;
   let plantMarkers = [];
   const guided = () => mode === "records" || mode === "reveal";
@@ -83,7 +99,7 @@ async function start() {
   function frame(animate = true) {
     if (guided() || mode === "explore") {
       const positions = guided() ? pair.map(record=>record.coordinates)
-        : observations.features.map(record=>record.geometry.coordinates);
+        : forMonth(activeRecords(),id("month").value).map(record=>record.geometry.coordinates);
       const bbox = positions.reduce(([lo,hi],[x,y])=>[
         [Math.min(lo[0],x), Math.min(lo[1],y)], [Math.max(hi[0],x), Math.max(hi[1],y)]
       ], [[Infinity,Infinity],[-Infinity,-Infinity]]);
@@ -113,11 +129,25 @@ async function start() {
     id("south-key").hidden = !showSlopes || (!guided() && aspect === "North");
 
     visible("historical-trails", id("trails").checked);
-    visible("laurel", !guided() && id("observations").checked);
+    const all = allScope();
+    id("scope-control").hidden = mode !== "explore";
+    id("obs-label").textContent = all ? "Plant observations" : "Mountain-laurel records";
+    visible("laurel", !all && !guided() && id("observations").checked);
+    plantLayers.forEach(layer=>visible(layer,all && id("observations").checked));
     const month = id("month").value;
+    const records = activeRecords();
+    for (const option of id("month").options) {
+      const count = forMonth(records,option.value).length;
+      const name = {"":"All","04":"April","05":"May","06":"June"}[option.value];
+      option.textContent = name + " · " + count + (count === 1 ? " record" : " records");
+    }
+    if (all && month !== sourceMonth) {
+      sourceMonth = month;
+      map.getSource("plant-records").setData({type:"FeatureCollection",features:forMonth(allPlants.features,month)});
+    }
     map.setFilter("laurel",month ? ["==",["slice",["get","date"],5,7],month] : null);
     id("months").hidden = !id("observations").checked;
-    id("month-message").textContent = month ? "Select a point to read its dated record." : "28 of 34 records were made in June. Choose a month to locate its observations.";
+    id("month-message").textContent = all ? "Numbers count observations. Select a numbered group to zoom in, or a single point to read its record." : month ? "Select a point to read its dated record." : "28 of 34 records were made in June. Choose a month to locate its observations.";
     if (!id("observations").checked) popup.remove();
     id("bars").replaceChildren();
     for (const [name, color, area] of [["North","#275ca4",near?191:854],["South","#d87e32",near?211:893]]) {
@@ -190,7 +220,7 @@ async function start() {
     slopes:"Select a blue north-facing slope and an orange south-facing slope. Compare their elevation and steepness, then try a different pair. Each selection samples a 30 m forest cell.",
     records:"Both photographs show open mountain-laurel flowers. They were taken eight days and 224 m apart, at almost the same elevation. Tap either photograph to look closer.",
     reveal:"M23 sits on a north-facing forest cell and M30 on a south-facing one. The colors show where those settings continue around the two records.",
-    explore:"Explore all 34 observations. Select a point for its field record, or choose a blue and an orange slope to compare terrain. Some slopes have no nearby observations."};
+    explore:"Switch from mountain laurel to all plants to see what else people recorded here in spring 2025. Keep the same month and view to compare the records."};
   function render(next, camera) {
     const previous = mode;
     map.stop();
@@ -199,6 +229,8 @@ async function start() {
     plantMarkers.forEach(marker=>marker.remove());
     plantMarkers = [];
     id("heading").textContent=titles[mode];
+    if (mode === "explore") id("slope-tools").before(id("layers"));
+    else id("slope-tools").after(id("layers"));
     id("intro").textContent=descriptions[mode];
     id("land-tools").hidden=mode !== "landscape";
     id("slope-tools").hidden=!sampling();
@@ -254,10 +286,15 @@ async function start() {
   id("compare").onclick=id("explore").onclick=()=>navigate("slopes");
   id("back").onclick=leave;
   id("landscape").onclick=()=>history.state?.parent === "landscape" ? leave() : navigate("landscape");
+  id("scope").onchange=()=>{
+    popup.remove();
+    id("observations").checked=true;
+    refresh();
+  };
   id("month").onchange=()=>{
     popup.remove(); refresh();
     const month = id("month").value;
-    const points = observations.features.filter(f=>!month || f.properties.date.slice(5,7)===month)
+    const points = forMonth(activeRecords(),month)
       .map(f=>f.geometry.coordinates);
     if (points.length) {
       const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]);
@@ -268,9 +305,31 @@ async function start() {
   id("clear").onclick=clearPicks;
   id("reset").onclick=()=>frame();
   document.querySelectorAll("aside input").forEach(el=>el.onchange=refresh);
-  map.on("click",event=>{
+  map.on("click",async event=>{
     if (guided()) return;
-    const hits = map.queryRenderedFeatures(event.point,{layers:["laurel","candidates","study-hit-area"]});
+    const hits = map.queryRenderedFeatures(event.point,{layers:["plant-clusters","plant-points","laurel","candidates","study-hit-area"]});
+    const cluster = hits.find(f=>f.layer.id==="plant-clusters");
+    if (cluster) {
+      const zoom = await map.getSource("plant-records").getClusterExpansionZoom(cluster.properties.cluster_id);
+      if (allScope()) map.easeTo({center:cluster.geometry.coordinates,zoom,duration});
+      return;
+    }
+    if (hits.some(f=>f.layer.id==="plant-points")) {
+      const box=[[event.point.x-4,event.point.y-4],[event.point.x+4,event.point.y+4]];
+      const nearby=map.queryRenderedFeatures(box,{layers:["plant-points"]});
+      const content=document.createElement("div"), seen=new Set();
+      for (const {properties:p} of nearby) {
+        if (seen.has(p.url)) continue;
+        seen.add(p.url);
+        const title=document.createElement("strong"), row=document.createElement("p"), link=document.createElement("a");
+        title.textContent=p.name===p.scientific ? p.name : p.name+" · "+p.scientific;
+        link.href=p.url;link.target="_blank";link.rel="noopener";link.textContent="iNaturalist record";
+        row.append(p.date+" · "+p.observer,document.createElement("br"),link);
+        content.append(title,row);
+      }
+      popup.setLngLat(event.lngLat).setDOMContent(content).addTo(map);
+      return;
+    }
     if (hits.some(f=>f.layer.id==="laurel")) return;
     if (sampling()) {
       const slope = hits.find(f=>f.layer.id==="candidates");
@@ -278,7 +337,7 @@ async function start() {
     } else if (hits.some(f=>f.layer.id==="study-hit-area")) navigate("slopes",event.lngLat.toArray());
   });
   map.on("mousemove",event=>{
-    const layers = [sampling() ? "candidates" : "study-hit-area","laurel"];
+    const layers = [sampling() ? "candidates" : "study-hit-area","laurel","plant-points","plant-clusters"];
     map.getCanvas().style.cursor = !guided() && map.queryRenderedFeatures(event.point,{layers}).length ? "pointer" : "";
   });
   map.on("click","laurel",event=>{
