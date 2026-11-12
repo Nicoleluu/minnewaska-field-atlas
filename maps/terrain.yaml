@@ -1,7 +1,7 @@
 type: map
 id: minnewaska
 config:
-  mapStyle: "street-style.json?v=study-boundary"
+  mapStyle: "street-style.json?v=original-outline"
   center: [-74.253, 41.731]
   zoom: 11.5
 controls:
@@ -29,7 +29,7 @@ layers:
     label: Study boundary
     toggleable: false
     source: {type: geojson, url: data/boundary.geojson}
-    paint: {line-color: "#284b40", line-width: 2.2}
+    paint: {line-color: "#354a4d", line-width: 1.4}
   - id: historical-trails
     type: line
     label: Historical trails
