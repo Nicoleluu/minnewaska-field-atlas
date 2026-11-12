@@ -91,3 +91,16 @@ for f in json.loads((source/"minnewaska_observations.geojson").read_text())["fea
         observations.append(feature(f["geometry"], dict(date=p["observed_on"],observer=p["observer"],
           url=p["source_url"],accuracy=p["positional_accuracy_m"],color={4:"#974675",5:"#b17d09",6:"#4357a1"}[p["month"]])))
 collection("observations",observations)
+
+# Featured pair: original observation positions with Assignment 3 raster samples.
+pair = []
+with fiona.open(source / "observations_with_terrain.gpkg") as sampled:
+    for record in sampled:
+        p = record.properties
+        if p["record_id"] in ("M23", "M30"):
+            pair.append(dict(id=p["record_id"], coordinates=[p["longitude"], p["latitude"]],
+                             date=str(p["observed_on"]), observer=p["observer"], url=p["source_url"],
+                             accuracy=p["positional_accuracy_m"], elevation=round(p["elev_1"]),
+                             slope=round(p["slope_1"]), bearing=round(p["aspect_1"]),
+                             aspect={1:"North", 2:"South"}[p["screen_1"]]))
+dump(out / "featured-pair.json", sorted(pair, key=lambda sample: sample["id"]))

@@ -57,3 +57,14 @@ trail-proximity class. Elevation, slope and aspect come from the original grids.
 Separation uses the great-circle distance between cell centres. Slope and
 bearing are rounded to whole degrees. Returning restores the overview camera.
 Codex implemented this revision in response to Nicole's interaction feedback.
+
+Guided observation comparison
+The trail-side example retains the Assignment 3 camera extent. A separate
+observation sequence first locates M23 and M30, then overlays their sampled
+slope classes before opening exploration of all 34 observations. Dates,
+attribution and reported accuracy come from the original records; elevation,
+slope and aspect are rounded samples of the Assignment 3 terrain grid.
+The recorded positions are 224 m apart in UTM zone 18N. Their dates are
+eight days apart; flowering-stage and microclimate effects are not inferred.
+Nicole selected this sequence after reviewing the overlap analysis. Codex
+implemented it and prepared the two-record export from the sampled GeoPackage.

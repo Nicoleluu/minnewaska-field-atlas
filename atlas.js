@@ -16,13 +16,16 @@ async function dataset(name) {
   return response.json();
 }
 async function start() {
-  const [map, study, detail, observations, cells] = await Promise.all([
+  const [map, study, detail, observations, cells, pair] = await Promise.all([
     host.mapReady(), dataset("boundary"), fetch("data/comparison-bounds.json").then(response => response.json()), dataset("observations"),
-    fetch("data/candidate-cells.json").then(response => response.json())
+    fetch("data/candidate-cells.json").then(response => response.json()),
+    fetch("data/featured-pair.json").then(response => response.json())
   ]);
-  let comparing = false;
-  let landscapeCamera;
+  let mode = "landscape";
   let localCenter;
+  let plantMarkers = [];
+  const guided = () => mode === "records" || mode === "reveal";
+  const sampling = () => mode === "slopes" || mode === "explore";
   const initialIntro = id("intro").textContent;
   const selections = new Map();
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 480;
@@ -78,11 +81,20 @@ async function start() {
   const popup = new Popup({maxWidth:"260px"});
   const extents = [bounds(study), detail];
   function frame(animate = true) {
-    if (comparing && localCenter) {
+    if (guided() || mode === "explore") {
+      const positions = guided() ? pair.map(record=>record.coordinates)
+        : observations.features.map(record=>record.geometry.coordinates);
+      const bbox = positions.reduce(([lo,hi],[x,y])=>[
+        [Math.min(lo[0],x), Math.min(lo[1],y)], [Math.max(hi[0],x), Math.max(hi[1],y)]
+      ], [[Infinity,Infinity],[-Infinity,-Infinity]]);
+      map.fitBounds(bbox,{padding:60,maxZoom:16,duration:animate ? duration : 0});
+      return;
+    }
+    if (mode === "slopes" && localCenter) {
       map.easeTo({center:localCenter, zoom:14, bearing:0, pitch:0, duration:animate ? duration : 0});
       return;
     }
-    map.fitBounds(extents[Number(comparing)], {padding:28, duration:
+    map.fitBounds(extents[Number(mode === "slopes")], {padding:28, duration:
       animate && !matchMedia("(prefers-reduced-motion: reduce)").matches ? 650 : 0});
   }
   function visible(layer, show) {
@@ -94,11 +106,14 @@ async function start() {
     const filter = ["all"];
     if (aspect !== "both") filter.push(["==", ["get","aspect"], aspect]);
     if (near) filter.push(["==", ["get","near"], true]);
-    map.setFilter("candidates",filter.length > 1 ? filter : null);
-    visible("candidates", comparing);
+    map.setFilter("candidates",!guided() && filter.length > 1 ? filter : null);
+    const showSlopes = sampling() || mode === "reveal";
+    visible("candidates", showSlopes);
+    id("north-key").hidden = !showSlopes || (!guided() && aspect === "South");
+    id("south-key").hidden = !showSlopes || (!guided() && aspect === "North");
 
     visible("historical-trails", id("trails").checked);
-    visible("laurel", id("observations").checked);
+    visible("laurel", !guided() && id("observations").checked);
     id("months").hidden = !id("observations").checked;
     if (!id("observations").checked) popup.remove();
     id("bars").replaceChildren();
@@ -113,59 +128,115 @@ async function start() {
       id("bars").append(row);
     }
   }
-  function view(compare, center = null) {
-    if (compare === comparing) return;
-    map.stop();
-    if (compare) {
-      landscapeCamera = {center:map.getCenter(), zoom:map.getZoom(), bearing:map.getBearing(), pitch:map.getPitch()};
-      localCenter = center;
+  function showRecords() {
+    id("records").replaceChildren();
+    for (const record of pair) {
+      const revealed = mode === "reveal";
+      const pin = document.createElement("span");
+      pin.className = "record-pin" + (revealed ? " " + record.aspect.toLowerCase() : "");
+      pin.textContent = record.id;
+      plantMarkers.push(new Marker({element:pin}).setLngLat(record.coordinates).addTo(map));
+      const card = document.createElement("article");
+      card.className = "sample-record";
+      const title = document.createElement("h2"), data = document.createElement("p"), link = document.createElement("a");
+      title.textContent = record.id + " · " + record.date;
+      data.textContent = record.elevation + " m elevation · " +
+        (record.accuracy == null ? "Location accuracy unreported" : "Reported accuracy ±" + record.accuracy + " m");
+      link.href = record.url; link.target = "_blank"; link.rel = "noopener";
+      link.textContent = record.observer + " on iNaturalist ↗";
+      card.append(title,data,link);
+      if (revealed) {
+        const reading = document.createElement("p");
+        reading.textContent = record.aspect + "-facing · " + record.slope + "° slope · bearing " + record.bearing + "°";
+        card.append(reading);
+      }
+      id("records").append(card);
     }
-    comparing = compare;
-    popup.remove();
-    clearPicks();
-    id("back").hidden = !compare;
-    id("heading").textContent=compare?"Opposing slopes":"Reading the ridge";
-    id("intro").textContent=compare?"Select a blue north-facing slope and an orange south-facing slope. Compare their elevation and steepness, then try a different pair. Each selection samples a 30 m forest cell.":initialIntro;
-    id("land-tools").hidden=compare;
-    id("slope-tools").hidden=!compare;
-    id("landscape").setAttribute("aria-pressed",String(!compare));
-    id("compare").setAttribute("aria-pressed",String(compare));
+  }
+  const titles = {landscape:"Reading the ridge", slopes:"Opposing slopes", records:"Two mountain laurels",
+    reveal:"Across the ridge", explore:"Explore the observations"};
+  const descriptions = {landscape:initialIntro,
+    slopes:"Select a blue north-facing slope and an orange south-facing slope. Compare their elevation and steepness, then try a different pair. Each selection samples a 30 m forest cell.",
+    records:"Two observers recorded mountain laurel 224 m apart. Their mapped elevations differ by just 4 m. How does the ground beneath them differ?",
+    reveal:"M23 sits on a north-facing forest cell and M30 on a south-facing one. The colors show where those settings continue around the two records.",
+    explore:"Explore all 34 observations. Select a point for its field record, or choose a blue and an orange slope to compare terrain. Some slopes have no nearby observations."};
+  function render(next, camera) {
+    const previous = mode;
+    map.stop();
+    mode = next;
+    popup.remove(); clearPicks();
+    plantMarkers.forEach(marker=>marker.remove());
+    plantMarkers = [];
+    id("heading").textContent=titles[mode];
+    id("intro").textContent=descriptions[mode];
+    id("land-tools").hidden=mode !== "landscape";
+    id("slope-tools").hidden=!sampling();
+    id("plants").hidden=guided() || mode === "explore";
+    id("plant-story").hidden=!guided();
+    id("layers").hidden=guided();
+    id("back").hidden=mode === "landscape";
+    const parent = history.state?.parent || "landscape";
+    id("back").textContent = "← Back to " + ({landscape:"landscape",slopes:"slope comparison",
+      records:"observations",reveal:"slope reveal",explore:"exploration"}[parent]);
+    id("landscape").setAttribute("aria-pressed",String(mode === "landscape"));
+    id("compare").setAttribute("aria-pressed",String(mode === "slopes"));
+    if (guided()) {
+      showRecords();
+      id("study-note").hidden=mode !== "reveal";
+      id("next-stage").textContent=mode === "records" ? "Reveal slope aspects" : "Explore all observations";
+    }
+    if (mode === "explore" && previous !== mode) {
+      id("observations").checked=true;
+      id("near").checked=false;
+      document.querySelector("[value=both]").checked=true;
+    }
     refresh();
-    if (compare) frame(); else map.easeTo({...landscapeCamera, duration});
+    if (camera) map.jumpTo(camera);
+    else if (!(mode === "reveal" && previous === "records")) frame(previous !== next);
     if (matchMedia("(max-width:760px)").matches) document.querySelector(".canvas").scrollIntoView({block:"start"});
   }
-  function enter(center = null) {
-    if (comparing) return;
-    history.pushState({atlasDetail:true}, "", "#slopes");
-    view(true, center);
-    id("back").focus({preventScroll:true});
+  function navigate(next, center = null) {
+    if (next === mode) return;
+    const camera = {center:map.getCenter().toArray(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()};
+    history.replaceState({...history.state,camera}, "");
+    history.pushState({parent:mode,center}, "", location.pathname + location.search + (next === "landscape" ? "" : "#" + next));
+    localCenter = center;
+    render(next);
   }
   function leave() {
-    if (!comparing) return;
-    if (history.state?.atlasDetail) history.back();
-    else {history.replaceState(null, "", location.pathname+location.search);view(false);}
+    if (mode === "landscape") return;
+    if (history.state?.parent) history.back();
+    else navigate("landscape");
+  }
+  function currentRoute() {
+    const route = location.hash.slice(1);
+    return Object.hasOwn(titles,route) ? route : "landscape";
   }
   window.addEventListener("popstate", () => {
-    view(location.hash === "#slopes", localCenter);
-    if (!comparing) id("explore").focus({preventScroll:true});
+    localCenter = history.state?.center;
+    render(currentRoute(),history.state?.camera);
   });
-  document.addEventListener("keydown", event => { if(event.key === "Escape" && comparing) leave(); });
-  id("compare").onclick=id("explore").onclick=()=>enter();
-  id("back").onclick=id("landscape").onclick=leave;
+  document.addEventListener("keydown", event => { if(event.key === "Escape") leave(); });
+  id("plants").onclick=()=>navigate("records");
+  id("next-stage").onclick=()=>navigate(mode === "records" ? "reveal" : "explore");
+  id("compare").onclick=id("explore").onclick=()=>navigate("slopes");
+  id("back").onclick=leave;
+  id("landscape").onclick=()=>history.state?.parent === "landscape" ? leave() : navigate("landscape");
   id("clear").onclick=clearPicks;
   id("reset").onclick=()=>frame();
   document.querySelectorAll("aside input").forEach(el=>el.onchange=refresh);
   map.on("click",event=>{
+    if (guided()) return;
     const hits = map.queryRenderedFeatures(event.point,{layers:["laurel","candidates","study-hit-area"]});
     if (hits.some(f=>f.layer.id==="laurel")) return;
-    if (comparing) {
+    if (sampling()) {
       const slope = hits.find(f=>f.layer.id==="candidates");
       if (slope) pick(event.lngLat, slope);
-    } else if (hits.some(f=>f.layer.id==="study-hit-area")) enter(event.lngLat);
+    } else if (hits.some(f=>f.layer.id==="study-hit-area")) navigate("slopes",event.lngLat.toArray());
   });
   map.on("mousemove",event=>{
-    const layers = [comparing ? "candidates" : "study-hit-area","laurel"];
-    map.getCanvas().style.cursor = map.queryRenderedFeatures(event.point,{layers}).length ? "pointer" : "";
+    const layers = [sampling() ? "candidates" : "study-hit-area","laurel"];
+    map.getCanvas().style.cursor = !guided() && map.queryRenderedFeatures(event.point,{layers}).length ? "pointer" : "";
   });
   map.on("click","laurel",event=>{
     const content=document.createElement("div");
@@ -184,8 +255,8 @@ async function start() {
     const c=map.getCenter();
     id("location").textContent=c.lat.toFixed(3)+"° N · "+Math.abs(c.lng).toFixed(3)+"° W";
   });
-  refresh();frame(false);
-  if (location.hash === "#slopes") view(true);
+  localCenter = history.state?.center;
+  render(currentRoute(),history.state?.camera);
   id("status").textContent="";
 }
 start().catch(error=>{id("status").textContent="Map could not load. Refresh using a WebGL-enabled browser.";console.error(error);});
