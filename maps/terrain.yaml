@@ -25,7 +25,7 @@ layers:
     visible: false
     source: {type: geojson, url: data/slopes.geojson}
     paint:
-      fill-color: ["match", ["get", "aspect"], North, "#275ca4", "#d87e32"]
+      fill-color: ["match", ["get", "aspect"], North, "#147973", "#d87e32"]
       fill-opacity: 0.88
   - id: study-hit-area
     type: fill

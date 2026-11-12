@@ -107,3 +107,26 @@ the most frequently reported taxon name(s) in the selected period. Each
 count refers to an observation ID. The bottom map key separates observation
 symbols from terrain colors. Custom terrain sampling starts when the visitor
 opens "Choose my own two slopes." The public trail layer remains visible.
+
+Field comparison workflow
+Forest cover (Cornell CUGIR / NLCD 2016) and the USGS 3DEP terrain grid
+define candidate north- and south-facing forest cells. Field selections
+sample the original 30 m cells. The elevation gap and straight-line distance
+help compare candidate pairs; there is no fixed ecological suitability score.
+For each cell centre the export finds the nearest original historical trail
+line in UTM 18N. Line sections up to 150 m long provide a local highlight.
+Distances are rounded metres to the nearest polyline, not walking distances.
+The zoom example highlights mapped trail sections intersecting its extent.
+No routing or verification of current access is performed.
+
+Potential sunlight is a dimensionless terrain-only comparison for the same
+selected period in 2025 (April, May, June or April–June). The index sums
+positive direct-beam incidence on the inclined surface and divides by the
+same site's flat-ground sum. It uses 10-minute solar-time midpoints,
+daily fractional-year solar declination and each site's rounded slope and
+bearing and latitude. It assumes constant beam intensity above a flat horizon.
+100% denotes flat-ground exposure; scores can exceed 100%. The model omits
+canopy, surrounding terrain shadows, atmosphere, clouds and diffuse light.
+It is not measured insolation, temperature, moisture or plant response.
+Solar geometry: NOAA Global Monitoring Laboratory, General Solar Position
+Calculations, https://gml.noaa.gov/grad/solcalc/solareqns.PDF

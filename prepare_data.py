@@ -55,7 +55,32 @@ with rasterio.open(source / "screening_classes.tif") as src, rasterio.open(sourc
             fields.append(np.rint(grid.read(1)[rows, cols]).astype(int))
     values = np.column_stack((np.rint(np.array(lng)*1e6), np.rint(np.array(lat)*1e6),
                               classes[rows,cols], near[rows,cols], *fields)).astype(int)
-    dump(out / "candidate-cells.json", values.tolist())
+    # Index short pieces of the same projected trail lines used by the 100 m screen.
+    import shapely
+    from shapely.geometry import shape, mapping, box
+    from shapely.ops import substring
+    from math import ceil
+    segments, labels = [], []
+    with fiona.open(source / "trails.gpkg") as layer:
+        for record in layer:
+            line = shape(record.geometry)
+            for start in range(0, ceil(line.length), 150):
+                piece = substring(line, start, min(start + 150, line.length))
+                if piece.geom_type == "LineString":
+                    segments.append(piece)
+                    labels.append(record.properties["Name"] or "Unnamed mapped trail")
+    tree = shapely.STRtree(segments)
+    indices, distances = tree.query_nearest(shapely.points(xs, ys), all_matches=False, return_distance=True)
+    order = np.argsort(indices[0])
+    nearest = indices[1][order]
+    window = box(west, south, east, north)
+    paths = []
+    for i, piece in enumerate(segments):
+        geom = transform_geom(src.crs, "EPSG:4326", mapping(piece), precision=6)
+        paths.append(feature(geom, dict(segment=i, name=labels[i], example=shape(geom).intersects(window))))
+    collection("field-trails", paths)
+    field_cells = np.column_stack((values, nearest, np.rint(distances[order]).astype(int)))
+    dump(out / "field-cells.json", field_cells.tolist())
     dst,w,h = calculate_default_transform(src.crs,"EPSG:3857",src.width,src.height,*src.bounds)
     def warp(arr):
         result = np.zeros((h,w),dtype="uint8")

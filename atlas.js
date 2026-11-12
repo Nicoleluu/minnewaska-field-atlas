@@ -1,3 +1,4 @@
+import { relativeSunlight } from "./sunlight.js";
 import { Popup, Marker } from "maplibre-gl";
 import "./vendor/register.browser.js";
 
@@ -16,11 +17,11 @@ async function dataset(name) {
   return response.json();
 }
 async function start() {
-  const [map, study, detail, cells, pair, allPlants, photoIndex] = await Promise.all([
+  const [map, study, detail, cells, pair, allPlants, photoIndex, trailPieces] = await Promise.all([
     host.mapReady(), dataset("boundary"), fetch("data/comparison-bounds.json").then(response => response.json()),
-    fetch("data/candidate-cells.json").then(response => response.json()),
+    fetch("data/field-cells.json").then(response => response.json()),
     fetch("data/featured-pair.json").then(response => response.json()), dataset("all-plants"),
-    fetch("data/observation-photos.json").then(response=>response.json())
+    fetch("data/observation-photos.json").then(response=>response.json()), dataset("field-trails")
   ]);
   let mode = "landscape";
   const forMonth = (records,month) => records.filter(f=>!month || f.properties.date.slice(5,7) === month);
@@ -43,31 +44,90 @@ async function start() {
   const initialIntro = id("intro").textContent;
   const selections = new Map();
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 480;
+  const highlightSource = "field-trail-highlight";
+  const collection = features => ({type:"FeatureCollection",features});
+  const exampleTrails = trailPieces.features.filter(f=>f.properties.example);
+  map.addSource(highlightSource,{type:"geojson",data:collection([])});
+  for (const [suffix,color,width] of [["halo","white",6],["line","#67366e",3]]) {
+    map.addLayer({id:highlightSource+"-"+suffix,type:"line",source:highlightSource,
+      paint:{"line-color":color,"line-width":width},layout:{"line-cap":"round","line-join":"round"}},"plant-clusters");
+  }
+  let exampleActive = false;
+  let sunlightShown = false;
+  let notes = "";
+  function updateTrails() {
+    const selected = [...selections.values()].map(({cell})=>trailPieces.features[cell[7]]);
+    const features = selected.length ? [...new Set(selected)] : exampleActive ? exampleTrails : [];
+    const open = id("slope-tools").open && !guided();
+    map.getSource(highlightSource).setData(collection(open ? features : []));
+    id("trail-key").hidden = !open || !features.length;
+    id("trail-hint").textContent = selected.length ? "Purple marks the nearest mapped trail section for each selected cell."
+      : exampleActive ? "Purple marks mapped trails in the example area. Select a teal patch and an orange patch nearby."
+      : "Choose the trail-side example or select colored slopes on the map.";
+    id("terrain-example").textContent = selected.length ? "Show selected sites and nearby trails" : "Zoom to slopes near trails";
+  }
   function clearPicks() {
     for (const {marker} of selections.values()) marker.remove();
     selections.clear();
+    exampleActive = false;
+    sunlightShown = false;
     drawPicks();
   }
   function drawPicks() {
     const panel = id("picks");
     panel.replaceChildren();
-    const describe = text => {
-      const line = document.createElement("p");
-      line.textContent = text;
-      panel.append(line);
-    };
-    for (const [code, name] of [[1,"North"], [2,"South"]]) {
-      const sample = selections.get(code)?.cell;
-      describe(sample ? name + " · " + sample[4] + " m elevation · " + sample[5] +
-        "° slope · bearing " + sample[6] + "° · " + (sample[3] ? "within" : "beyond") + " 100 m of trails"
-        : "Select a " + name.toLowerCase() + "-facing slope.");
+    const lines=[];
+    for (const [code,name] of [[1,"North"],[2,"South"]]) {
+      const cell = selections.get(code)?.cell;
+      const card=document.createElement("div");
+      card.className="site-reading " + (code===1?"site-north":"site-south");
+      const heading=document.createElement("strong");
+      heading.textContent=name+" site";
+      card.append(heading);
+      if (cell) {
+        const trail=trailPieces.features[cell[7]].properties.name;
+        const metrics=cell[4]+" m elevation · "+cell[5]+"° slope · "+cell[6]+"° bearing";
+        const access="Nearest trail: "+trail+" · about "+cell[8]+" m straight-line distance";
+        card.append(document.createElement("br"),metrics,document.createElement("br"),access);
+        lines.push(name+" site: "+(cell[1]/1e6).toFixed(6)+", "+(cell[0]/1e6).toFixed(6)+" (WGS84)",metrics,access);
+      } else card.append(" · Select a "+(code===1?"teal":"orange")+" patch.");
+      panel.append(card);
     }
-    if (selections.size === 2) {
-      const n = selections.get(1), s = selections.get(2);
-      const separation = Math.round(n.marker.getLngLat().distanceTo(s.marker.getLngLat()));
-      describe(separation.toLocaleString() + " m apart · " + Math.abs(n.cell[4]-s.cell[4]) + " m elevation difference.");
+    updateTrails();
+    const complete=selections.size===2;
+    id("clear").hidden=selections.size===0;
+    id("pair-actions").hidden=!complete;
+    id("sun-result").replaceChildren();
+    id("sunlight").hidden=sunlightShown;
+    if (!complete) return;
+    const n=selections.get(1), s=selections.get(2);
+    const gap=Math.abs(n.cell[4]-s.cell[4]);
+    const separation=Math.round(n.marker.getLngLat().distanceTo(s.marker.getLngLat()));
+    const difference=gap+" m elevation difference · "+separation.toLocaleString()+" m apart";
+    const summary=document.createElement("h3"); summary.textContent=difference; panel.append(summary);
+    const prompt=document.createElement("p");
+    prompt.textContent="To reduce elevation as a competing explanation, try replacing either site with a "+(gap ? "closer elevation match." : "site of similar steepness; the rounded elevations already match.");
+    panel.append(prompt);
+    const month=document.querySelector("[name=month]:checked").value;
+    const period=({"":"April–June","04":"April","05":"May","06":"June"})[month]+" 2025";
+    id("sunlight").textContent="Compare potential sunlight · "+period;
+    const followup="Visit both sites over the same period. Check canopy cover, measure light, temperature and soil moisture, and record plant species and growth stage. Verify trail condition and permitted access before visiting.";
+    lines.push(difference);
+    if (sunlightShown) {
+      const result=id("sun-result");
+      const heading=document.createElement("h3");
+      heading.textContent="Potential direct sunlight · "+period;
+      result.append(heading);
+      const scores=[relativeSunlight(n.cell,month),relativeSunlight(s.cell,month)];
+      for (const [i,name] of ["North","South"].entries()) {
+        const p=document.createElement("p"); p.textContent=name+" site: "+scores[i]+"% of flat-ground exposure";
+        result.append(p); lines.push(period+" · "+p.textContent);
+      }
+      const p=document.createElement("p");
+      p.textContent="100% is level ground under the same idealized open sky. Canopy, terrain shadows and cloud are excluded. Test this prediction by measuring light at plant height at both sites.";
+      result.append(p);lines.push(p.textContent);
     }
-    id("clear").hidden = selections.size === 0;
+    notes=["Minnewaska · candidate field pair",...lines,followup,"Sources: USGS 3DEP, NLCD 2016 via Cornell CUGIR, historical NY State Parks trails."].join("\n");
   }
   function pick(point, feature) {
     const code = feature.properties.aspect === "North" ? 1 : 2;
@@ -90,6 +150,7 @@ async function start() {
     dot.textContent = code === 1 ? "N" : "S";
     const marker = new Marker({element:dot}).setLngLat([best[0]/1e6,best[1]/1e6]).addTo(map);
     selections.set(code, {cell:best, marker});
+    sunlightShown=false;
     drawPicks();
   }
   const popup = new Popup({maxWidth:"260px"});
@@ -277,7 +338,7 @@ async function start() {
       id("record-cards").append(card);
     }
   }
-  const titles = {landscape:"Plants along the ridge", records:"Mountain laurel in June", reveal:"Across the ridge"};
+  const titles = {landscape:"Where to study plant growth", records:"Mountain laurel in June", reveal:"Across the ridge"};
   const descriptions = {landscape:initialIntro,
     records:"Both photographs show open mountain-laurel flowers. They were taken eight days and 224 m apart, at almost the same elevation. Tap either photograph to look closer.",
     reveal:"M23 sits on a north-facing forest cell and M30 on a south-facing one. The colors show where those settings continue around the two records."};
@@ -329,10 +390,24 @@ async function start() {
   id("next-stage").onclick=()=>navigate(mode === "records" ? "reveal" : "landscape");
   id("back").onclick=()=>navigate("landscape");
   id("terrain-example").onclick=()=>{
-    map.fitBounds(detail,{padding:28,duration});
+    exampleActive=true;
+    updateTrails();
+    if (selections.size) {
+      const coords=[...selections.values()].flatMap(({cell,marker})=>[
+        marker.getLngLat().toArray(),...trailPieces.features[cell[7]].geometry.coordinates]);
+      const xs=coords.map(p=>p[0]), ys=coords.map(p=>p[1]);
+      map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],{padding:65,maxZoom:16,duration});
+    } else map.fitBounds(detail,{padding:28,duration});
     if (matchMedia("(max-width:760px)").matches) document.querySelector(".canvas").scrollIntoView({block:"start"});
   };
-  id("month-picker").onchange=()=>{ popup.remove(); refresh(); };
+  id("slope-tools").ontoggle=updateTrails;
+  id("sunlight").onclick=()=>{sunlightShown=true;drawPicks();};
+  id("field-notes").onclick=()=>{
+    const url=URL.createObjectURL(new Blob([notes],{type:"text/plain;charset=utf-8"}));
+    const link=document.createElement("a");link.href=url;link.download="Minnewaska-field-pair.txt";
+    link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  };
+  id("month-picker").onchange=()=>{ popup.remove(); refresh(); drawPicks(); };
   id("clear").onclick=clearPicks;
   id("reset").onclick=()=>frame();
 
