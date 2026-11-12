@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>A little shelter · Minnewaska field atlas</title><link rel="stylesheet" href="vendor/leaflet.css"><link rel="stylesheet" href="atlas.css"></head>
+<body><header><span>Minnewaska field atlas</span><span>Shawangunk Ridge, NY</span></header>
+<main><aside><nav aria-label="Map view"><button id="overview" aria-pressed="true">Landscape</button><button id="comparison" aria-pressed="false">Slope comparison</button></nav>
+<h1 id="title">A little shelter, somewhere.</h1>
+<p id="intro">Where could terrain and forest cover create different growing conditions for plants? Explore the ridges of Minnewaska, then look closer at two slopes that face different directions.</p>
+<div id="overviewTools"><button class="action" id="explore">Explore the comparison area ↗</button></div>
+<section id="comparisonTools" hidden><fieldset><legend>Show forested slopes</legend>
+<label><input type="radio" name="aspect" value="both" checked> Both</label>
+<label><input type="radio" name="aspect" value="north"> North</label>
+<label><input type="radio" name="aspect" value="south"> South</label></fieldset>
+<label><input type="checkbox" id="near"> Only slopes within 100 m of trails</label><p id="area" aria-live="polite"></p></section>
+<section><h2>Map layers</h2><label><input type="checkbox" id="trails" checked> Historical trails</label><br><label><input type="checkbox" id="observations"> Mountain-laurel observations</label><p id="recordNote" hidden>34 observations, April–June 2025. Select a point for its date and observer. Visits were uneven across months and locations.</p></section>
+<section><h2>Map key</h2><ul id="key"></ul></section>
+<details><summary>Sources &amp; method</summary><p>Terrain comes from USGS 3DEP elevation at 30 m. Forest includes deciduous, evergreen and mixed forest in the 2016 National Land Cover Database. The study boundary follows iNaturalist place 192775.</p><p>North spans 315°–45° and south spans 135°–225°. Both require forest and at least 10° of slope. Trail proximity uses the historical NY State Parks network, merged in 2021. Verify current cover and access before planning a visit.</p></details>
+</aside><section class="plate" aria-label="Interactive map"><div id="map" aria-label="Minnewaska terrain map"></div><div class="mapbar"><span id="caption">Minnewaska · Landscape</span><button id="reset">Reset view</button></div></section></main>
+<script src="vendor/leaflet.js"></script><script src="data/geography.js"></script><script src="data/observations.js"></script><script src="atlas.js"></script></body></html>

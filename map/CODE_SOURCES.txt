@@ -1,0 +1,35 @@
+A little shelter, somewhere. | Interactive Minnewaska field atlas
+Open index.html in a modern browser with this folder intact. The map runs offline.
+External observation links require internet access.
+
+Code provenance
+Codex generated the HTML, CSS, JavaScript and GIS export code in this draft
+and tested the main interactions in Chrome. The user selected the assignments,
+set their priority and approved the proposed map interactions. The course
+template was not used. Before submission, document your own implementation
+changes and explain them alongside this record.
+Leaflet 1.9.4 implements the web map, layers, popups, zoom and scale.
+https://leafletjs.com/ | Bundled distribution and license in vendor/.
+
+How the views work
+index.html defines the two views and their controls. atlas.css styles the page.
+atlas.js frames the boundary or the original atlas lens footprint and switches
+local raster overlays. The north/south filter selects one or both classes.
+The 100 m filter selects overlays intersected with the original trail-near grid.
+Totals refer to the entire study area, regardless of zoom. The vectors and images
+in data/ are local, so opening the page does not require a tile or API service.
+
+Map and data provenance
+The Assignment 3 Minnewaska Field Atlas supplied the study boundary, forest
+screen, hillshade, historical trails, comparison footprint and area statistics.
+The original 30 m UTM analysis was reprojected to Web Mercator for display.
+Area figures come from original UTM cell counts. Colors are illustrative.
+USGS 3DEP elevation: https://www.usgs.gov/3d-elevation-program
+NLCD 2016, New York, CUGIR: https://cugir-data.s3.amazonaws.com/00/90/31/fgdc.html
+NY State Parks trails (2021 merge): https://services.arcgis.com/1xFZPtKn1wKC6POA/ArcGIS/rest/services/NY_State_Parks_Trails/FeatureServer/0
+Study boundary: https://www.inaturalist.org/places/192775
+
+Assignment 2 supplied 34 unique mapped mountain-laurel records from April–June
+2025. Popups credit each observer and link to each original iNaturalist record.
+Exactly coincident coordinates share a popup. Dates and location uncertainty
+are from the records. Photos and unreviewed flowering-stage labels are omitted.
