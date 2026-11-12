@@ -35,7 +35,7 @@ async function start() {
       "text-font":["Roboto Regular"],"text-allow-overlap":true,"text-ignore-placement":true},paint:{"text-color":"white"}});
   map.addLayer({id:"plant-points",type:"circle",source:"plant-records",filter:["!",clusterFilter],
     layout:{visibility:"none"},paint:{"circle-radius":6,"circle-stroke-width":1.4,"circle-stroke-color":"white",
-      "circle-color":["match",["slice",["get","date"],5,7],"04","#974675","05","#b17d09","#4357a1"]}});
+      "circle-color":"#633752"}});
   let sourceMonth = "";
   let overviewCamera;
   let plantMarkers = [];
@@ -191,41 +191,26 @@ async function start() {
   }
   function refresh() {
     clearHover();
-    const aspect = document.querySelector("[name=aspect]:checked").value;
-    const near = id("near").checked;
-    const filter = ["all"];
-    if (aspect !== "both") filter.push(["==", ["get","aspect"], aspect]);
-    if (near) filter.push(["==", ["get","near"], true]);
-    map.setFilter("candidates",!guided() && filter.length > 1 ? filter : null);
-    const showSlopes = mode !== "records";
-    visible("candidates", showSlopes);
-    id("north-key").hidden = !showSlopes || (!guided() && aspect === "South");
-    id("south-key").hidden = !showSlopes || (!guided() && aspect === "North");
-
-    visible("historical-trails", id("trails").checked);
+    visible("candidates", mode !== "records");
+    id("terrain-key").hidden = mode === "records";
+    id("point-key").hidden = guided();
+    id("reset").textContent = guided() ? "Fit both sightings" : "Show full study area";
     plantLayers.forEach(layer=>visible(layer,!guided()));
-    const month = id("month").value;
-    const records = allPlants.features;
-    for (const option of id("month").options) {
-      const count = forMonth(records,option.value).length;
-      const name = {"":"All","04":"April","05":"May","06":"June"}[option.value];
-      option.textContent = name + " · " + count + (count === 1 ? " record" : " records");
-    }
+    const month = document.querySelector("[name=month]:checked").value;
+    const records = forMonth(allPlants.features,month);
     if (month !== sourceMonth) {
       sourceMonth = month;
-      map.getSource("plant-records").setData({type:"FeatureCollection",features:forMonth(allPlants.features,month)});
+      map.getSource("plant-records").setData({type:"FeatureCollection",features:records});
     }
-    id("bars").replaceChildren();
-    for (const [name, color, area] of [["North","#275ca4",near?191:854],["South","#d87e32",near?211:893]]) {
-      if (aspect !== "both" && name !== aspect) continue;
-      const row = document.createElement("div");
-      row.className="bar";
-      const bar = document.createElement("i");
-      bar.style.background=color;
-      bar.style.width=(area/893*100)+"%";
-      row.append(name,bar,area+" ha");
-      id("bars").append(row);
+    const totals = new Map();
+    for (const {properties} of records) {
+      const name = properties.name || properties.scientific;
+      totals.set(name,(totals.get(name) || 0) + 1);
     }
+    const highest = Math.max(...totals.values());
+    const leaders = [...totals].filter(([,count])=>count===highest).map(([name])=>name);
+    id("period").textContent = "Most reported: " + leaders.join(" and ") + " (" + highest +
+      (leaders.length > 1 ? " sightings each)." : " sightings).");
   }
   const photos = {
     M23:{path:"data/photos/M23.jpg",credit:"rachelgoland98",source:"https://www.inaturalist.org/photos/521611947",
@@ -292,7 +277,7 @@ async function start() {
       id("record-cards").append(card);
     }
   }
-  const titles = {landscape:"Plants & slopes", records:"Mountain laurel in June", reveal:"Across the ridge"};
+  const titles = {landscape:"Plants along the ridge", records:"Mountain laurel in June", reveal:"Across the ridge"};
   const descriptions = {landscape:initialIntro,
     records:"Both photographs show open mountain-laurel flowers. They were taken eight days and 224 m apart, at almost the same elevation. Tap either photograph to look closer.",
     reveal:"M23 sits on a north-facing forest cell and M30 on a south-facing one. The colors show where those settings continue around the two records."};
@@ -347,20 +332,10 @@ async function start() {
     map.fitBounds(detail,{padding:28,duration});
     if (matchMedia("(max-width:760px)").matches) document.querySelector(".canvas").scrollIntoView({block:"start"});
   };
-  id("month").onchange=()=>{
-    popup.remove(); refresh();
-    const month = id("month").value;
-    const points = forMonth(allPlants.features,month)
-      .map(f=>f.geometry.coordinates);
-    if (points.length) {
-      const xs=points.map(p=>p[0]), ys=points.map(p=>p[1]);
-      map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],
-        {padding:50,maxZoom:14,duration});
-    }
-  };
+  id("month-picker").onchange=()=>{ popup.remove(); refresh(); };
   id("clear").onclick=clearPicks;
   id("reset").onclick=()=>frame();
-  document.querySelectorAll("aside input").forEach(el=>el.onchange=refresh);
+
   map.on("click",async event=>{
     if (guided()) return;
     const hits = map.queryRenderedFeatures(event.point,{layers:["plant-clusters","plant-points","candidates"]});
@@ -377,13 +352,13 @@ async function start() {
       return;
     }
     const slope = hits.find(f=>f.layer.id==="candidates");
-    if (slope) {
-      id("slope-tools").open=true;
+    if (slope && id("slope-tools").open) {
       pick(event.lngLat,slope);
     }
   });
   map.on("mousemove",async event=>{
-    const layers = ["plant-points","plant-clusters","candidates"];
+    const layers = ["plant-points","plant-clusters"];
+    if (id("slope-tools").open) layers.push("candidates");
     const hits = guided() ? [] : map.queryRenderedFeatures(event.point,{layers});
     map.getCanvas().style.cursor = hits.length ? "pointer" : "";
     const hit = hits.find(f=>["plant-points","plant-clusters"].includes(f.layer.id));
@@ -404,10 +379,6 @@ async function start() {
     const hint = group ? "One of " + hit.properties.point_count + " observations · Click to expand"
       : "Click to keep this photograph open.";
     preview.setLngLat(hit.geometry.coordinates).setDOMContent(photoCard(record,hint)).addTo(map);
-  });
-  map.on("moveend",()=>{
-    const c=map.getCenter();
-    id("location").textContent=c.lat.toFixed(3)+"° N · "+Math.abs(c.lng).toFixed(3)+"° W";
   });
   overviewCamera = history.state?.overviewCamera;
   render(currentRoute(),history.state?.camera);

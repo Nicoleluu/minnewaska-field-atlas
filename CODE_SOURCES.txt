@@ -100,3 +100,10 @@ The initial map combines all 553 plant observations, forest slope candidates,
 relief and historical trails. Month and aspect controls act in the same view.
 The terrain example changes only the camera. The two-observation comparison
 is optional and returns to the previous map extent and filters.
+
+Desktop interface revision
+The month control filters reports while preserving the map camera and shows
+the most frequently reported taxon name(s) in the selected period. Each
+count refers to an observation ID. The bottom map key separates observation
+symbols from terrain colors. Custom terrain sampling starts when the visitor
+opens "Choose my own two slopes." The public trail layer remains visible.

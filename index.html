@@ -1,21 +1,29 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Minnewaska · Terrain &amp; exposure</title><meta name="description" content="Explore forested ridges and compare north- and south-facing slopes at Minnewaska, New York.">
+<title>Minnewaska · Field atlas</title><meta name="description" content="Explore plant sightings recorded at Minnewaska in spring 2025 and compare the forested slopes beneath them.">
 <link rel="stylesheet" href="vendor/maplibre-gl.css"><link rel="stylesheet" href="css/site.css">
 <script type="importmap">{"imports":{"maplibre-gl":"./vendor/maplibre-gl.mjs"}}</script></head>
-<body><header><b>Minnewaska</b><span>Terrain &amp; exposure</span><small>Nicole Lu · GIS for Design Practices</small></header>
-<main><section class="canvas" aria-label="Interactive terrain map"><ml-map src="maps/terrain.yaml"></ml-map>
+<body><a class="skip" href="#map-region">Skip to map</a>
+<header><b>Minnewaska</b><span>Field atlas</span><small>Nicole Lu · GIS for Design Practices</small></header>
+<main><section class="canvas" id="map-region" tabindex="-1" aria-label="Interactive map of Minnewaska plant sightings and forested slopes"><ml-map src="maps/terrain.yaml"></ml-map>
 <div class="map-status" role="status" id="status">Loading terrain…</div>
-<button id="back" class="map-back" hidden>← Back to landscape</button><div class="map-footer"><span id="location">Shawangunk Ridge, New York</span><button id="reset">Reset extent</button></div></section>
-<aside><h1 id="heading">Plants &amp; slopes</h1><p id="intro">Explore 553 plant observations across Minnewaska’s forested slopes, April–June 2025. Hover or tap a point for its photograph.</p>
+<button id="back" class="map-back" hidden>← Back to map</button>
+<div class="map-footer"><div id="point-key"><b class="dot-symbol" aria-hidden="true">3</b> Sightings in group <b class="single-symbol" aria-hidden="true"></b> One sighting</div><div id="terrain-key"><i class="north"></i> North-facing <i class="south"></i> South-facing</div><button id="reset">Show full study area</button></div></section>
+<aside aria-label="Map guide"><p class="place">Shawangunk Ridge, New York · Spring 2025</p>
+<h1 id="heading">Plants along the ridge</h1><p id="intro">Where did people record plants on Minnewaska’s forested slopes? Each point is an iNaturalist sighting. Dense groups show where people reported more often.</p>
 <section id="plant-story" hidden><div id="record-cards"></div><p id="study-note" hidden>The visits were eight days apart. M23 has no reported location accuracy and lies about 14 m from its mapped class boundary. A paired field visit could test how conditions differ.</p><button class="primary" id="next-stage"></button></section>
-<div id="map-tools"><section id="layers"><h2>Plant observations</h2><label>Month <select id="month"><option value="">All · 553 records</option><option value="04">April · 37 records</option><option value="05">May · 245 records</option><option value="06">June · 271 records</option></select></label><p class="month-key"><i class="apr"></i> April <i class="may"></i> May <i class="jun"></i> June</p><label><input id="trails" type="checkbox" checked> Historical trails</label></section>
-<button class="plant-entry" id="plants">Compare two mountain-laurel sightings ↗</button>
-<details id="slope-tools"><summary>Compare forested slopes</summary><button class="terrain-example" id="terrain-example">Zoom to the trail-side example ↗</button><div class="pair"><h2>Compare two locations</h2><div id="picks" aria-live="polite"></div><button id="clear" hidden>Clear selection</button></div><fieldset><legend>Aspect</legend><div class="radios"><label><input name="aspect" type="radio" value="both" checked>Both</label><label><input name="aspect" type="radio" value="North">North</label><label><input name="aspect" type="radio" value="South">South</label></div></fieldset>
-<label><input type="checkbox" id="near"> Within 100 m of historical trails</label>
-<h3>Candidate area across the study</h3><div id="bars" aria-live="polite"></div></details>
+<div id="map-tools">
+<section class="time-panel"><h2>Explore sightings by month</h2>
+<fieldset id="month-picker"><legend class="sr-only">Filter sightings by observation month</legend>
+<label><input type="radio" name="month" value="" checked><span>All</span><strong>553</strong></label>
+<label><input type="radio" name="month" value="04"><span>April</span><strong>37</strong></label>
+<label><input type="radio" name="month" value="05"><span>May</span><strong>245</strong></label>
+<label><input type="radio" name="month" value="06"><span>June</span><strong>271</strong></label></fieldset>
+<p id="period" aria-live="polite"></p><p class="how">Click a numbered group to separate sightings. Hover over a point to see its photograph; click to keep it open.</p></section>
+<section class="terrain-intro"><h2>Read the ground beneath a sighting</h2><p>Blue and orange mark forested slopes of 10° or steeper. The colors show which way the ground faces.</p>
+<button class="case-link" id="plants"><img src="data/photos/M23.jpg" width="88" height="74" alt=""><span><b>Two mountain-laurel sightings</b><small>224 m apart · 4 m elevation difference.</small><strong>Compare their slopes ↗</strong></span></button>
+<details id="slope-tools"><summary>Choose my own two slopes</summary><p>Select one blue patch and one orange patch to compare elevation, steepness and proximity to mapped trails.</p><button class="terrain-example" id="terrain-example">Zoom to slopes near trails</button><div id="picks" aria-live="polite"></div><button id="clear" hidden>Clear selected slopes</button></details></section>
 </div>
-<section><h2>Map key</h2><ul id="key"><li id="north-key" hidden><i class="north"></i>North-facing slope</li><li id="south-key" hidden><i class="south"></i>South-facing slope</li><li><i class="forest"></i>Forest</li><li><i class="land"></i>Other cover</li><li><i class="water"></i>Water</li><li><i class="contour"></i>Contour</li></ul></section>
-<details><summary>Data &amp; interpretation</summary><p>Terrain uses a 30 m USGS 3DEP elevation grid. Forest includes the 2016 NLCD deciduous, evergreen and mixed classes. North spans 315°–45° and south spans 135°–225°. Both require slopes of at least 10°.</p><p>Distances are measured to the historical NY State Parks trail network (2021 merge). Current access and temperature require field verification. The 34 iNaturalist mountain-laurel observations are unevenly distributed across April, May and June 2025.</p><a href="CODE_SOURCES.txt">Sources and code credits</a></details>
+<details class="method"><summary>Data sources &amp; limits</summary><p>The study boundary follows iNaturalist place 192775. The 553 public plant reports include all quality grades from April–June 2025. Observation density depends on visits and reporting effort. The data do not measure plant abundance.</p><p>Forested slopes use 2016 NLCD cover and USGS 3DEP terrain at 30 m. North spans 315°–45° and south spans 135°–225°. Dashed paths show the historical state parks trail network. Exposure and trail proximity can guide a field visit; access and microclimate need field verification.</p><a href="CODE_SOURCES.txt">Code, data and photograph credits</a></details>
 </aside></main>
 <dialog id="photo-dialog" aria-labelledby="photo-heading"><form method="dialog"><button aria-label="Close photograph">Close ×</button></form><h2 id="photo-heading"></h2><img id="full-photo" alt=""><p id="photo-caption"></p><p><a id="photo-source" target="_blank" rel="noopener"></a> · <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC</a></p></dialog><script type="module" src="atlas.js"></script></body></html>
