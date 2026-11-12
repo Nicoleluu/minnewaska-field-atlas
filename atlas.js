@@ -16,10 +16,11 @@ async function dataset(name) {
   return response.json();
 }
 async function start() {
-  const [map, study, detail, observations, cells, pair, allPlants] = await Promise.all([
+  const [map, study, detail, observations, cells, pair, allPlants, photoIndex] = await Promise.all([
     host.mapReady(), dataset("boundary"), fetch("data/comparison-bounds.json").then(response => response.json()), dataset("observations"),
     fetch("data/candidate-cells.json").then(response => response.json()),
-    fetch("data/featured-pair.json").then(response => response.json()), dataset("all-plants")
+    fetch("data/featured-pair.json").then(response => response.json()), dataset("all-plants"),
+    fetch("data/observation-photos.json").then(response=>response.json())
   ]);
   let mode = "landscape";
   const allScope = () => mode === "explore" && id("scope").value === "all";
@@ -95,6 +96,87 @@ async function start() {
     drawPicks();
   }
   const popup = new Popup({maxWidth:"260px"});
+  const preview = new Popup({closeButton:false,closeOnClick:false,focusAfterOpen:false,
+    className:"observation-preview",maxWidth:"220px",offset:12});
+  let hoverKey = "";
+  function clearHover() {
+    hoverKey = "";
+    preview.remove();
+  }
+  function photoCard(record, hint = "") {
+    const card = document.createElement("article");
+    card.className = "observation-card";
+    const title = document.createElement("strong");
+    title.textContent = record.name || "Mountain laurel";
+    card.append(title);
+    if (record.scientific && record.scientific !== record.name) {
+      const scientific = document.createElement("em");
+      scientific.textContent = record.scientific;
+      card.append(scientific);
+    }
+    const photo = photoIndex[record.url.split("/").pop()];
+    const credit = document.createElement("small");
+    if (photo) {
+      const image = document.createElement("img");
+      image.src = photo.src;
+      image.alt = photo.reference ? "Species reference photograph of " + title.textContent
+        : title.textContent + " photographed on " + record.date;
+      if (photo.reference) {
+        const label = document.createElement("strong");
+        label.textContent = "Species reference photo · original record has no photo";
+        card.append(label);
+      }
+      image.onerror = () => { image.hidden = true; credit.textContent = "Photo unavailable from source."; };
+      credit.textContent = photo.credit;
+      card.append(image,credit);
+      if (!hint) {
+        const source = document.createElement("a");
+        source.href = "https://www.inaturalist.org/photos/" + photo.id;
+        source.target = "_blank"; source.rel = "noopener"; source.textContent = "Original photo";
+        card.append(source);
+      }
+    } else {
+      credit.textContent = "No photograph in this observation.";
+      card.append(credit);
+    }
+    const details = document.createElement("div");
+    details.textContent = record.date + " · " + record.observer;
+    card.append(details);
+    if (record.accuracy != null) {
+      const accuracy = document.createElement("small");
+      accuracy.textContent = "Reported accuracy: " + record.accuracy + " m";
+      card.append(accuracy);
+    }
+    if (hint) {
+      const note = document.createElement("small");
+      note.textContent = hint;
+      card.append(note);
+    } else {
+      const link = document.createElement("a");
+      link.href=record.url;link.target="_blank";link.rel="noopener";link.textContent="iNaturalist record ↗";
+      card.append(link);
+    }
+    return card;
+  }
+  function pinRecords(features, coordinates) {
+    clearHover();
+    const records = [...new Map(features.map(f=>[f.properties.url,f.properties])).values()];
+    let index = 0;
+    function draw() {
+      const content = photoCard(records[index]);
+      if (records.length > 1) {
+        const next = document.createElement("button");
+        next.textContent = (index+1) + " of " + records.length + " here · Next photo →";
+        next.onclick = () => { index = (index + 1) % records.length; draw(); };
+        content.append(next);
+      }
+      popup.setDOMContent(content);
+    }
+    draw();
+    popup.setLngLat(coordinates).addTo(map);
+  }
+  map.getCanvas().addEventListener("mouseleave",clearHover);
+  map.on("movestart",clearHover);
   const extents = [bounds(study), detail];
   function frame(animate = true) {
     if (guided() || mode === "explore") {
@@ -117,6 +199,7 @@ async function start() {
     map.setLayoutProperty(layer, "visibility", show ? "visible" : "none");
   }
   function refresh() {
+    clearHover();
     const aspect = document.querySelector("[name=aspect]:checked").value;
     const near = id("near").checked;
     const filter = ["all"];
@@ -147,7 +230,7 @@ async function start() {
     }
     map.setFilter("laurel",month ? ["==",["slice",["get","date"],5,7],month] : null);
     id("months").hidden = !id("observations").checked;
-    id("month-message").textContent = all ? "Numbers count observations. Select a numbered group to zoom in, or a single point to read its record." : month ? "Select a point to read its dated record." : "28 of 34 records were made in June. Choose a month to locate its observations.";
+    id("month-message").textContent = all ? "Hover to preview a photograph. Select a numbered group to zoom in, or tap a point to keep its photo open." : month ? "Hover or tap a point to see its photograph." : "28 of 34 records were made in June. Hover or tap a point for its photograph.";
     if (!id("observations").checked) popup.remove();
     id("bars").replaceChildren();
     for (const [name, color, area] of [["North","#275ca4",near?191:854],["South","#d87e32",near?211:893]]) {
@@ -179,6 +262,7 @@ async function start() {
         id("photo-caption").textContent = photo.description;
         id("photo-source").href = photo.source;
         id("photo-source").textContent = "Photograph © " + photo.credit;
+        clearHover();
         id("photo-dialog").showModal();
       };
       const pin = document.createElement("button");
@@ -189,6 +273,17 @@ async function start() {
       const label = document.createElement("span");
       label.textContent = revealed ? record.aspect + "-facing" : date;
       pin.append(thumb,label);
+      pin.addEventListener("pointerenter",event=>{
+        if (event.pointerType !== "mouse") return;
+        const content = document.createElement("article");
+        content.className = "observation-card";
+        const picture = document.createElement("img"), caption=document.createElement("small");
+        picture.src=photo.path; picture.alt=photo.description;
+        caption.textContent=date+" · © "+photo.credit+" · CC BY-NC";
+        content.append(picture,caption);
+        preview.setLngLat(record.coordinates).setDOMContent(content).addTo(map);
+      });
+      pin.addEventListener("pointerleave",clearHover);
       pin.onclick = event => {event.stopPropagation();openPhoto();};
       plantMarkers.push(new Marker({element:pin,anchor:"bottom"}).setLngLat(record.coordinates).addTo(map));
       const card = document.createElement("article");
@@ -314,44 +409,39 @@ async function start() {
       if (allScope()) map.easeTo({center:cluster.geometry.coordinates,zoom,duration});
       return;
     }
-    if (hits.some(f=>f.layer.id==="plant-points")) {
-      const box=[[event.point.x-4,event.point.y-4],[event.point.x+4,event.point.y+4]];
-      const nearby=map.queryRenderedFeatures(box,{layers:["plant-points"]});
-      const content=document.createElement("div"), seen=new Set();
-      for (const {properties:p} of nearby) {
-        if (seen.has(p.url)) continue;
-        seen.add(p.url);
-        const title=document.createElement("strong"), row=document.createElement("p"), link=document.createElement("a");
-        title.textContent=p.name===p.scientific ? p.name : p.name+" · "+p.scientific;
-        link.href=p.url;link.target="_blank";link.rel="noopener";link.textContent="iNaturalist record";
-        row.append(p.date+" · "+p.observer,document.createElement("br"),link);
-        content.append(title,row);
-      }
-      popup.setLngLat(event.lngLat).setDOMContent(content).addTo(map);
+    const pointHit = hits.find(f=>f.layer.id==="plant-points" || f.layer.id==="laurel");
+    if (pointHit) {
+      const box=[[event.point.x-3,event.point.y-3],[event.point.x+3,event.point.y+3]];
+      pinRecords(map.queryRenderedFeatures(box,{layers:[pointHit.layer.id]}),pointHit.geometry.coordinates);
       return;
     }
-    if (hits.some(f=>f.layer.id==="laurel")) return;
     if (sampling()) {
       const slope = hits.find(f=>f.layer.id==="candidates");
       if (slope) pick(event.lngLat, slope);
     } else if (hits.some(f=>f.layer.id==="study-hit-area")) navigate("slopes",event.lngLat.toArray());
   });
-  map.on("mousemove",event=>{
-    const layers = [sampling() ? "candidates" : "study-hit-area","laurel","plant-points","plant-clusters"];
-    map.getCanvas().style.cursor = !guided() && map.queryRenderedFeatures(event.point,{layers}).length ? "pointer" : "";
-  });
-  map.on("click","laurel",event=>{
-    const content=document.createElement("div");
-    const title=document.createElement("strong"); title.textContent="Mountain laurel";content.append(title);
-    const hits=map.queryRenderedFeatures([[event.point.x-5,event.point.y-5],[event.point.x+5,event.point.y+5]],{layers:["laurel"]});
-    const urls=new Set(hits.map(hit=>hit.properties.url));
-    for (const {properties:p} of observations.features.filter(f=>urls.has(f.properties.url))) {
-      const row=document.createElement("p"), link=document.createElement("a");
-      link.href=p.url;link.target="_blank";link.rel="noopener";link.textContent="iNaturalist record";
-      row.append(p.date+" · "+p.observer,document.createElement("br"),p.accuracy==null?"Accuracy unreported":"Reported accuracy: "+p.accuracy+" m",document.createElement("br"),link);
-      content.append(row);
+  map.on("mousemove",async event=>{
+    const layers = ["plant-points","laurel","plant-clusters",sampling() ? "candidates" : "study-hit-area"];
+    const hits = guided() ? [] : map.queryRenderedFeatures(event.point,{layers});
+    map.getCanvas().style.cursor = hits.length ? "pointer" : "";
+    const hit = hits.find(f=>["plant-points","laurel","plant-clusters"].includes(f.layer.id));
+    if (!hit || popup.isOpen() || event.originalEvent.buttons) { clearHover(); return; }
+    const group = hit.layer.id === "plant-clusters";
+    const key = group ? "group-" + hit.properties.cluster_id : hit.properties.url;
+    if (key === hoverKey) return;
+    clearHover();
+    hoverKey = key;
+    let record = hit.properties;
+    if (group) {
+      try {
+        const [leaf] = await map.getSource("plant-records").getClusterLeaves(hit.properties.cluster_id,1,0);
+        if (hoverKey !== key || !leaf) return;
+        record = leaf.properties;
+      } catch { return; }
     }
-    popup.setLngLat(event.lngLat).setDOMContent(content).addTo(map);
+    const hint = group ? "One of " + hit.properties.point_count + " observations · Click to expand"
+      : "Click to keep this photograph open.";
+    preview.setLngLat(hit.geometry.coordinates).setDOMContent(photoCard(record,hint)).addTo(map);
   });
   map.on("moveend",()=>{
     const c=map.getCenter();

@@ -86,3 +86,11 @@ reports across all quality grades. The all-plants snapshot retains every
 source ID; the 34-record Assignment 2 layer retains its original curation.
 Each record links to the observer's source. The all-plants layer filters
 records by month before clustering them. No additional photos were copied.
+
+Hover photographs
+Photo metadata was matched by iNaturalist observation ID on November 12, 2026.
+Of 553 records, 552 have an observation photograph. Record 280019932 has no
+media and uses the explicitly labelled Vaccinium pallidum species reference
+photograph 266941479, © Douglas Goldman (CC BY-SA). Images in hover cards
+load from the original public photo hosts with iNaturalist attribution.
+Cluster previews show one member's photo and identify the group size.
